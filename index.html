@@ -557,6 +557,9 @@
 
         function runIntro() {
             state = "talk";
+            menu.hidden = true;           // 선택창 닫기
+            $("end").hidden = true;       // 임시 화면 닫기
+            $("flash").className = "flash";   // 섬광 초기화
             say(INTRO, onIntroEnd);
         }
         function onIntroEnd() { openMenu(); }
@@ -583,10 +586,19 @@
             if (state !== "menu") return;   // 두 번 눌림 방지
             menu.hidden = true;
             if (i === 0) {
-                // YES → 7단계에서 섬광 연출과 홈페이지 이동을 붙임
+                // YES → 대사 → 흰 섬광 → 홈페이지로 이동
                 state = "done";
                 nextEl.hidden = true;
                 lineEl.textContent = "좋아! 모험을 떠나 보자!";
+                $("flash").classList.add("go");
+                setTimeout(() => {
+                    if (HOME_URL) {
+                        location.href = HOME_URL;          // 주소가 있으면 이동
+                    } else {
+                        $("end").hidden = false;           // 없으면 임시 화면
+                        $("again").focus({ preventScroll: true });
+                    }
+                }, 1150);   // 섬광 애니메이션(1.1초)이 끝난 뒤
             } else {
                 // NO → "다시 한번 생각해보시게...." → 질문 다시 → 선택창
                 state = "talk";
@@ -603,6 +615,11 @@
         // 마우스를 올리면 ▶ 커서도 따라감
         yes.addEventListener("mouseenter", () => setSel(0));
         no.addEventListener("mouseenter", () => setSel(1));
+        $("again").addEventListener("click", (e) => {
+            e.stopPropagation();
+            runIntro();
+            $("screen").focus({ preventScroll: true });
+        });
 
         document.addEventListener("keydown", (e) => {
             // 선택창이 열려 있을 때: ↑↓로 이동, Enter/Space로 선택, Esc는 NO
