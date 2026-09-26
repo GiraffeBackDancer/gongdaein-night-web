@@ -1,0 +1,7 @@
+# 저작권·초상권 이미지는 올리지 않음
+images/*.png
+
+.DS_Store
+Thumbs.db
+.vscode/
+node_modules/
