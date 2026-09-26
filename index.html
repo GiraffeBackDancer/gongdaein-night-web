@@ -427,7 +427,7 @@
     <script>
         /* ===================== 설정 ===================== */
         const HOME_URL = "";        // YES 선택 시 이동할 홈페이지 주소 (비우면 임시 화면)
-        const CHARACTER_IMG = "images/character.png";   // 캐릭터 이미지 경로 (예: "images/character.png"). 비우면 기본 도트 캐릭터
+        const CHARACTER_IMG = "assets/character.png";
 
         const $ = (id) => document.getElementById(id);
 
@@ -484,12 +484,13 @@
         }
 
         function drawCharacter() {
-            drawDots();   // 일단 기본 캐릭터를 그려 두고
-            if (!CHARACTER_IMG) return;
+            drawDots();   // 대비용으로 미리 그려만 둠
+            if (!CHARACTER_IMG) return;   // 이미지 설정이 없으면 도트 캐릭터 그대로
 
-            const img = $("charImg");
-            // 이미지를 불러오는 데 성공했을 때만 교체 → 파일이 없으면 기본 캐릭터가 그대로 남음
-            img.onload = () => { img.hidden = false; $("sprite").hidden = true; };
+            const img = $("charImg"), sprite = $("sprite");
+            sprite.hidden = true;                             // 불러오는 동안은 아무것도 안 보이게
+            img.onload = () => { img.hidden = false; };       // 성공 → 이미지 표시
+            img.onerror = () => { sprite.hidden = false; };   // 실패(파일 없음) → 도트 캐릭터 표시
             img.src = CHARACTER_IMG;
         }
         drawCharacter();
@@ -500,10 +501,12 @@
             "우리는 12월 3일, 함께 모험을 떠날 친구들을 모으고 있어.",
             "이번 공대인의 밤에 함께 할텐가?"
         ];
+        const NO_LINE = "다시 한번 생각해보시게....";
+        const QUESTION = INTRO[INTRO.length - 1];   // 마지막 대사 = 질문 (NO 이후 다시 물어볼 때 사용)
         const TYPE_SPEED = 45;   // 글자 하나가 찍히는 간격(ms). 작을수록 빠름
 
         const lineEl = $("line"), nextEl = $("next");
-        
+
 
         let timer = null;      // 타이핑 타이머
         let full = "";         // 지금 찍고 있는 대사 전체

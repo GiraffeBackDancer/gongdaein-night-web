@@ -1,5 +1,5 @@
-# 저작권·초상권 이미지는 올리지 않음
-images/*.png
+# 배포하지 않을 파일은 private 폴더에 (assets 폴더는 배포됨)
+private/
 
 .DS_Store
 Thumbs.db
