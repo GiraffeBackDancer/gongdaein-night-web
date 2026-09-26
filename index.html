@@ -495,6 +495,35 @@
         }
         drawCharacter();
 
+        /* ===================== 효과음 ===================== */
+        // 사각파(square)로 옛날 게임기 소리를 직접 만듦 → 효과음 파일 불필요
+        let audioCtx = null, soundOn = false;
+
+        function beep(freq = 880, dur = 0.03, vol = 0.04) {
+            if (!soundOn || !audioCtx) return;
+            const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+            osc.type = "square";
+            osc.frequency.value = freq;   // 음 높이(Hz)
+            gain.gain.value = vol;        // 음량
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + dur);   // 길이(초)
+        }
+
+        function toggleSound(btn) {
+            // 아이폰 무음 모드에서도 스피커로 나오게: 소리 종류를 '미디어 재생'으로 지정
+            try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (_) { }
+            // 구형 iOS 대비: 무음 오디오를 한 번 재생하면 미디어 재생 모드로 전환됨
+            try { new Audio("data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==").play().catch(() => { }); } catch (_) { }
+            // 브라우저는 사용자가 버튼을 누른 뒤에만 소리를 허용 → 이 시점에 오디오 준비
+            try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch (_) { }
+
+            soundOn = !soundOn;
+            btn.textContent = soundOn ? "효과음 끄기" : "효과음 켜기";
+            btn.setAttribute("aria-pressed", soundOn);
+            beep(1320, 0.06);   // 켜질 때 확인음
+        }
+
         /* ===================== 대사 ===================== */
         const INTRO = [
             "공대인인가? 잘 왔네!",
@@ -526,6 +555,7 @@
             let i = 0;
             timer = setInterval(() => {
                 lineEl.textContent = text.slice(0, ++i);
+                if (text[i - 1].trim()) beep(760 + (i % 3) * 60, 0.025);   // 띄어쓰기는 소리 없음, 음을 조금씩 바꿔 단조롭지 않게
                 if (i >= text.length) finishType();
             }, TYPE_SPEED);
         }
@@ -552,7 +582,7 @@
         function advance() {
             if (state !== "talk") return;
             if (typing) { finishType(); return; }
-            if (pending) { const p = pending; pending = null; p(); }
+            if (pending) { const p = pending; pending = null; beep(1040, 0.04); p(); }
         }
 
         function runIntro() {
@@ -584,6 +614,7 @@
 
         function choose(i) {
             if (state !== "menu") return;   // 두 번 눌림 방지
+            beep(i === 0 ? 1320 : 520, 0.08);   // YES는 높은 음, NO는 낮은 음
             menu.hidden = true;
             if (i === 0) {
                 // YES → 대사 → 흰 섬광 → 홈페이지로 이동
@@ -619,6 +650,10 @@
             e.stopPropagation();
             runIntro();
             $("screen").focus({ preventScroll: true });
+        });
+        $("snd").addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleSound(e.currentTarget);
         });
 
         document.addEventListener("keydown", (e) => {
