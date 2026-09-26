@@ -559,14 +559,68 @@
             state = "talk";
             say(INTRO, onIntroEnd);
         }
-        function onIntroEnd() {
-            // 6단계에서 여기에 YES/NO 선택창을 띄움
+        function onIntroEnd() { openMenu(); }
+
+        /* ===================== YES / NO ===================== */
+        const menu = $("menu"), yes = $("yes"), no = $("no");
+        let sel = 0;   // 0: YES, 1: NO
+
+        function openMenu() {
+            state = "menu";
+            menu.hidden = false;
+            setSel(0);
+            yes.focus({ preventScroll: true });
+        }
+
+        // ▶ 커서 위치 바꾸기
+        function setSel(i) {
+            sel = i;
+            yes.classList.toggle("on", i === 0);
+            no.classList.toggle("on", i === 1);
+        }
+
+        function choose(i) {
+            if (state !== "menu") return;   // 두 번 눌림 방지
+            menu.hidden = true;
+            if (i === 0) {
+                // YES → 7단계에서 섬광 연출과 홈페이지 이동을 붙임
+                state = "done";
+                nextEl.hidden = true;
+                lineEl.textContent = "좋아! 모험을 떠나 보자!";
+            } else {
+                // NO → "다시 한번 생각해보시게...." → 질문 다시 → 선택창
+                state = "talk";
+                say([NO_LINE, QUESTION], openMenu);
+            }
         }
 
         /* ===================== 조작 ===================== */
         $("screen").addEventListener("click", advance);
+
+        // 버튼 클릭이 화면 클릭(advance)으로 번지지 않게 stopPropagation
+        yes.addEventListener("click", (e) => { e.stopPropagation(); choose(0); });
+        no.addEventListener("click", (e) => { e.stopPropagation(); choose(1); });
+        // 마우스를 올리면 ▶ 커서도 따라감
+        yes.addEventListener("mouseenter", () => setSel(0));
+        no.addEventListener("mouseenter", () => setSel(1));
+
         document.addEventListener("keydown", (e) => {
-            if (e.target.tagName === "BUTTON") return;   // 버튼에 포커스가 있으면 버튼 자체 동작에 맡김
+            // 선택창이 열려 있을 때: ↑↓로 이동, Enter/Space로 선택, Esc는 NO
+            if (state === "menu") {
+                if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setSel(sel ? 0 : 1);
+                    (sel ? no : yes).focus({ preventScroll: true });
+                } else if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    choose(sel);
+                } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    choose(1);
+                }
+                return;
+            }
+            if (e.target.tagName === "BUTTON") return;
             if (e.key === " " || e.key === "Enter") { e.preventDefault(); advance(); }
         });
 
