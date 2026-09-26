@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>공대인의 밤 지도</title>
+<style>
+@font-face{font-family:"Galmuri11";src:url("fonts/Galmuri11.woff2") format("woff2");font-display:block}
+@font-face{font-family:"Galmuri11";src:url("fonts/Galmuri11-Bold.woff2") format("woff2");font-weight:700;font-display:block}
+:root{
+  color-scheme:dark;
+  --bg:#141824;--bezel:#262c3d;--ink:#1b1d2a;--box:#ffffff;--accent:#e8483c;--muted:#8a90a4;
+  --pix:"Galmuri11",ui-monospace,"Apple SD Gothic Neo","Malgun Gothic",monospace;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:#fff;font-family:var(--pix);display:flex;justify-content:center;
+  padding-inline:16px;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+*,*::before,*::after{box-sizing:border-box}
+.wrap{width:100%;max-width:460px;display:flex;flex-direction:column;gap:12px;padding-block:16px}
+.top{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:.12em;color:var(--muted)}
+.top b{font-weight:400;display:flex;align-items:center;gap:8px}
+.led{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.bezel{background:var(--bezel);border-radius:14px 14px 34px 14px;padding:12px;box-shadow:0 0 0 2px #0c0f18,0 18px 40px rgba(0,0,0,.45)}
+.stage{position:relative;width:100%;aspect-ratio:15/21;max-width:100%;border:3px solid #0c0f18;overflow:hidden;background:#88d070;touch-action:manipulation}
+#map{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;cursor:pointer}
+.tag{position:absolute;transform:translate(-50%,-50%);background:#fff;color:var(--ink);font-size:11px;padding:2px 7px;border:2px solid var(--ink);border-radius:3px;box-shadow:0 2px 0 rgba(0,0,0,.3);pointer-events:none;white-space:nowrap}
+.tag.main{background:var(--accent);color:#fff}
+.fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .26s steps(4)}
+.fade.on{opacity:1}
+.tag.day{background:#f4c430;color:var(--ink)}
+
+/* 대화창 */
+.dialog{position:absolute;left:3%;right:3%;bottom:2.5%;min-height:22%;background:var(--box);color:var(--ink);
+  border:4px solid var(--ink);border-radius:6px;box-shadow:inset 0 0 0 3px var(--box),inset 0 0 0 5px var(--ink);
+  padding:14px 18px;display:flex;align-items:center;cursor:pointer}
+#line{margin:0;font-size:clamp(13px,3.8vw,16px);line-height:1.65;word-break:keep-all}
+.next{position:absolute;right:14px;bottom:10px;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid var(--accent);animation:bob .7s steps(2) infinite}
+@keyframes bob{50%{transform:translateY(3px)}}
+
+/* 조작부 */
+.pad{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.dpad{display:grid;grid-template-columns:repeat(3,50px);grid-template-rows:repeat(3,50px)}
+.dpad button{font:inherit;background:#2f364a;color:#c9cdd8;border:0;font-size:16px;touch-action:none;cursor:pointer}
+.dpad button:active,.dpad button.on{background:#454e68;color:#fff}
+.dpad .u{grid-column:2;grid-row:1;border-radius:6px 6px 0 0}
+.dpad .l{grid-column:1;grid-row:2;border-radius:6px 0 0 6px}
+.dpad .c{grid-column:2;grid-row:2;background:#2f364a;pointer-events:none}
+.dpad .r{grid-column:3;grid-row:2;border-radius:0 6px 6px 0}
+.dpad .d{grid-column:2;grid-row:3;border-radius:0 0 6px 6px}
+.acts{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.abtn{width:62px;height:62px;border-radius:50%;background:#8b2f4f;color:#fff;border:0;font:inherit;font-size:18px;box-shadow:0 4px 0 #5a1d33;cursor:pointer}
+.abtn:active{transform:translateY(3px);box-shadow:0 1px 0 #5a1d33}
+.list{font:inherit;font-size:12px;color:#c9cdd8;background:none;border:1px solid #3a4258;border-radius:999px;padding:7px 12px;cursor:pointer}
+.sound{display:flex;gap:8px;justify-content:center}
+.sound button{font:inherit;font-size:12px;color:#c9cdd8;background:none;border:1px solid #3a4258;border-radius:999px;padding:7px 12px;cursor:pointer}
+.sound button[aria-pressed="true"]{background:#2f364a;color:#fff;border-color:#5a6480}
+.hint{font-size:11px;color:var(--muted);text-align:center;line-height:1.6}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* 장소 카드 · 포스터 */
+.overlay{position:fixed;inset:0;background:rgba(10,12,20,.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+.card{width:100%;max-width:420px;max-height:calc(100% - 20px);overflow:auto;background:#fff;color:var(--ink);border:4px solid var(--ink);border-radius:8px;
+  box-shadow:inset 0 0 0 3px #fff,inset 0 0 0 5px var(--ink);padding:20px 20px 16px;animation:pop .14s steps(2)}
+@keyframes pop{from{transform:scale(.85);opacity:0}}
+.card h2{margin:0 0 2px;font-size:20px;font-weight:700;text-wrap:balance}
+.card .sub{margin:0 0 14px;font-size:12px;color:#5a6076}
+.ev{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:2px dashed #d5d8e2}
+.ev .no{flex:none;width:28px;height:28px;border:2px solid var(--ink);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px}
+.ev.hot .no{background:var(--accent);border-color:var(--accent);color:#fff}
+.ev strong{display:block;font-size:14px;font-weight:700}
+.ev span{font-size:12px;color:#5a6076;line-height:1.6}
+.ev button{margin-top:6px;font:inherit;font-size:12px;background:var(--accent);color:#fff;border:0;border-radius:3px;padding:6px 10px;cursor:pointer}
+.when{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;margin-bottom:6px}
+.when.day{background:#fff1c2;color:#8a5a00}.when.night{background:#1b2442;color:#f4c430}
+.reward{display:grid;gap:8px;margin-top:12px}
+.reward div{display:flex;justify-content:space-between;align-items:center;gap:10px;border:2px solid var(--ink);border-radius:4px;padding:8px 10px;font-size:12px}
+.reward b{font-weight:700;white-space:nowrap}.reward span{text-align:right;color:#3a3f55}
+.reward .gold{background:#fff1c2}
+.divider{margin:20px 0 4px;border-top:4px double var(--ink)}
+.close{display:block;margin:14px 0 0 auto;font:inherit;font-size:13px;background:var(--ink);color:#fff;border:0;border-radius:3px;padding:9px 16px;cursor:pointer}
+
+.poster{max-width:380px;padding:0;overflow:hidden;background:#1b2442;color:#fff}
+.poster .hd{background:var(--accent);padding:10px 16px;font-size:11px;letter-spacing:.2em;display:flex;justify-content:space-between}
+.poster .body{padding:22px 20px 18px;display:flex;flex-direction:column;gap:14px;position:relative}
+.poster .body::before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.18) 1px,transparent 1px);background-size:22px 22px;pointer-events:none}
+.poster h2{position:relative;margin:0;font-size:30px;line-height:1.15;color:#fff}
+.poster h2 em{font-style:normal;color:#f4c430}
+.poster .vs{position:relative;display:flex;align-items:center;justify-content:center;gap:14px;padding:6px 0}
+.poster .vs i{width:54px;height:54px;border:3px solid #fff;border-radius:50%;display:block}
+.poster .vs i:first-child{background:#e8483c}.poster .vs i:last-child{background:#3f6fc0}
+.poster .vs b{font-size:22px;color:#f4c430}
+.poster dl{position:relative;margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:13px;background:rgba(255,255,255,.08);padding:12px 14px;border-radius:4px}
+.poster dt{color:#9aa3c0}.poster dd{margin:0}
+.poster .tbd{color:#f4c430}
+.poster .cta{position:relative;font:inherit;font-size:15px;background:#f4c430;color:var(--ink);border:0;border-radius:4px;padding:12px;cursor:pointer}
+.poster .foot{position:relative;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#9aa3c0}
+.poster .close{margin:0;background:#fff;color:var(--ink)}
+@media (prefers-reduced-motion:reduce){.next,.card{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><b><span class="led"></span>ENGINEERING NIGHT · 12.03</b><span>지도 시제품</span></div>
+  <div class="bezel">
+    <div class="stage" id="stage">
+      <canvas id="map" width="240" height="336" aria-label="학생회관 광장 지도. 캐릭터를 움직여 건물에 들어가면 안내가 나옵니다"></canvas>
+      <div id="tags"></div>
+      <div class="fade" id="fade"></div>
+      <div class="dialog" id="dialog" hidden><p id="line" aria-live="polite"></p><span class="next" id="next" hidden></span></div>
+    </div>
+  </div>
+  <div class="pad">
+    <div class="dpad" aria-label="방향키">
+      <button class="u" data-d="up" aria-label="위">▲</button>
+      <button class="l" data-d="left" aria-label="왼쪽">◀</button>
+      <span class="c"></span>
+      <button class="r" data-d="right" aria-label="오른쪽">▶</button>
+      <button class="d" data-d="down" aria-label="아래">▼</button>
+    </div>
+    <div class="acts">
+      <button class="abtn" id="abtn" aria-label="조사하기">A</button>
+      <button class="list" id="listBtn">목록으로 보기</button>
+    </div>
+  </div>
+  <div class="sound"><button id="sfxBtn" aria-pressed="false">효과음 켜기</button><button id="bgmBtn" aria-pressed="false">배경음악 켜기</button></div>
+  <div class="hint">가고 싶은 곳을 누르면 알아서 걸어가요 · 방향키 / A 버튼 · PC는 ←↑↓→, Space</div>
+</div>
+
+<div class="overlay" id="placeOv" hidden><div class="card" id="placeCard" role="dialog" aria-modal="true"></div></div>
+<div class="overlay" id="posterOv" hidden>
+  <div class="card poster" role="dialog" aria-modal="true" aria-label="포켓몬 배틀 포스터">
+    <div class="hd"><span>공대인의 밤 · 12.03</span><span>BATTLE</span></div>
+    <div class="body">
+      <h2>포켓몬 배틀<br><em>사전신청</em> 모집</h2>
+      <div class="vs"><i></i><b>VS</b><i></i></div>
+      <dl>
+        <dt>방식</dt><dd>Pokémon Showdown 랜덤배틀</dd>
+        <dt>대상</dt><dd>공과대학 재학생 <span class="tbd">(확인 필요)</span></dd>
+        <dt>예선</dt><dd class="tbd">일정 추후 공지</dd>
+        <dt>결승</dt><dd>12월 3일 · 대강당 무대</dd>
+        <dt>신청</dt><dd class="tbd">구글폼 링크 준비 중</dd>
+      </dl>
+      <button class="cta" id="applyBtn">▶ 배틀 신청하기</button>
+      <div class="foot"><span id="applyMsg">신청 링크가 열리면 이 버튼으로 연결돼요</span><button class="close" id="posterClose">닫기</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== 장소 · 행사 정보 (여기만 고치면 내용이 바뀜) ===== */
+const PLACES = {
+  hall: {
+    name: "학생회관 5층 · 대강당", main: true,
+    talk: ["학생회관이라네. 5층 대강당으로 올라가 보지!", "공대인의 밤은 모두 이 대강당에서 열린다네. 순서를 보여주지!"],
+    sub: "저녁 · 대강당 · 시간은 추후 공개", badge: "저녁",
+    events: [
+      { t: "포켓몬 콘테스트", d: "베스트드레서를 뽑는 무대" },
+      { t: "체육관 도장깨기", d: "관장(집행부)과의 대결과 미니게임" },
+      { t: "포켓몬 배틀 결승", d: "사전신청 배틀의 마지막 무대", hot: true, poster: true },
+      { t: "최종 경품 추첨", d: "오프닝에서 받은 응모 쪽지로 추첨" }
+    ]
+  },
+  gym:     { name: "체육관 도장깨기", badge: "저녁", sub: "대강당 무대 왼쪽 · 시간은 추후 공개",
+    talk: ["체육관 코너라네. 관장(집행부)이 도전자를 기다리고 있지!", "대결과 미니게임에서 이기면 배지를 얻을 수 있다네."],
+    events: [{ t: "관장과 대결", d: "관장(집행부)과 겨루는 무대" }, { t: "미니게임", d: "게임을 깨고 배지 획득" }] },
+  contest: { name: "포켓몬 콘테스트", badge: "저녁", sub: "대강당 무대 가운데 · 시간은 추후 공개",
+    talk: ["무대 위 런웨이라네. 여기서 포켓몬 콘테스트가 열리지!", "베스트드레서가 되고 싶다면 멋지게 차려입고 오게!"],
+    events: [{ t: "베스트드레서 뽑기", d: "포켓몬 컨셉 의상으로 런웨이에 도전" }] },
+  battle:  { name: "포켓몬 배틀 결승", badge: "저녁", sub: "대강당 무대 오른쪽 · 시간은 추후 공개",
+    talk: ["배틀 단상이다! 포켓몬 배틀 결승이 여기서 열린다네.", "사전신청 배틀을 뚫고 올라온 트레이너만 설 수 있지!", "승부 예측에 성공하는 트레이너는 응모권을 받을 수 있다는 점!", "승부 예측 링크는 추후에 공개된다네."],
+    events: [{ t: "사전신청 배틀 결승", d: "Pokémon Showdown 랜덤배틀 · 대형 스크린 중계", hot: true, poster: true }, { t: "승부 예측", d: "결승 승자를 맞히면 포켓몬 카드(응모권) 지급 · 예측 링크는 추후 공개" }] },
+  raffle:  { name: "최종 경품 추첨", badge: "저녁", sub: "대강당 · 마지막 순서",
+    talk: ["경품 추첨이다! 오늘 모은 포켓몬 카드... 경품이 될 것인가?", "마지막 순서, 최종 경품 추첨을 놓치지 말게!"],
+    events: [{ t: "포켓몬 카드 추첨", d: "낮 부스와 승부 예측에서 받은 포켓몬 카드(응모권)로 추첨 · 뽑힌 포켓몬 카드를 가진 사람이 당첨!" }] },
+  rocket: {
+    name: "로켓단 부스", badge: "낮",
+    talk: ["훗, 로켓단 부스에 온 걸 환영한다!", "캠퍼스 곳곳에 'R' 오브제를 숨겨 두었지... 찾아오면 상품과 바꿔 주마!"],
+    sub: "낮 부스 · 11:00–15:00 · 광장 왼쪽",
+    events: [
+      { t: "숨겨진 R 오브제 찾기", d: "캠퍼스 어딘가에 플라스틱 R 오브제가 숨겨져 있어요" },
+      { t: "힌트는 당일 스토리로", d: "숨긴 장소 힌트를 행사 당일 인스타 스토리로 공개해요" },
+      { t: "부스에 가져오면 교환", d: "찾은 R 오브제를 로켓단 부스에서 상품으로 바꿔 줘요", hot: true }
+    ]
+  },
+  oak: {
+    name: "오박사의 포켓몬 기본소양 부스", badge: "낮",
+    talk: ["오박사의 포켓몬 기본소양 부스라네!", "미니게임 3개 중 2개를 깨면 응모권, 3개를 모두 깨면 모자까지 주지!"],
+    sub: "낮 부스 · 11:00–15:00 · 광장 왼쪽 · 스탬프 모으기",
+    events: [
+      { t: "몬스터볼 던지기", d: "성공하면 스탬프 1개" },
+      { t: "포켓 룰렛", d: "같은 포켓몬 2칸 이상이면 스탬프 1개" },
+      { t: "포토부스 인증", d: "사진을 찍고 인증하면 스탬프 1개" }
+    ],
+    note: '<div class="reward"><div><b>스탬프 2개</b><span>포켓몬 카드(응모권) 1장</span></div><div class="gold"><b>스탬프 3개</b><span>지우 모자 (선착순 50명) + 포켓몬 카드(응모권) 1장</span></div></div>'
+  },
+  book:  { name: "서점",       talk: ["서점이다. 전공책이 빼곡하게 꽂혀 있다...", "시험 기간이 떠올라 얼른 나왔다."] },
+  optic: { name: "안경점",     talk: ["안경점이다. 반짝이는 안경테가 진열되어 있다."] },
+  cu:    { name: "CU",         talk: ["편의점이다! 삼각김밥이 잔뜩 있다.", "모험 전에 간식을 챙겨 두는 것도 좋겠지."] },
+  cafe:  { name: "그라찌에",   talk: ["카페 그라찌에다. 고소한 커피 향이 난다.", "대강당에 올라가기 전에 한 잔 해도 좋겠다."] }
+};
+
+/* ===== 지도: 학생회관 ㄷ자 광장 ===== */
+const COLS = 15, ROWS = 21, T = 16;
+let grid = Array.from({ length: ROWS }, () => Array(COLS).fill("g"));
+const fill = (x0, y0, x1, y1, v) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) grid[y][x] = v; };
+for (let x = 0; x < COLS; x++) grid[0][x] = "t";
+for (let y = 0; y < ROWS; y++) { grid[y][0] = "t"; grid[y][COLS - 1] = "t"; }
+fill(1, 1, 13, 4, "b");            // 본관 (지붕 + 남쪽 벽)
+fill(1, 5, 4, 13, "b");            // 왼쪽 날개
+fill(10, 5, 13, 13, "b");          // 오른쪽 날개
+fill(5, 5, 9, 13, "q");            // 광장 (벽돌 바닥)
+fill(1, 14, 13, 15, "q");
+fill(7, 16, 7, 20, "p");
+fill(1, 18, 4, 20, "t"); fill(10, 18, 13, 20, "t"); fill(1, 17, 2, 17, "t"); fill(12, 17, 13, 17, "t");
+fill(4, 16, 5, 17, "f"); fill(9, 16, 10, 17, "f");
+fill(5, 8, 6, 9, "x"); fill(8, 8, 9, 9, "x");   // 파라솔 테이블
+[[1, 16], [13, 16]].forEach(([x, y]) => grid[y][x] = "o");
+const DOORS = [
+  { id: "hall",  x: 7,  y: 4,  out: [0, 1] },
+  { id: "book",  x: 4,  y: 7,  out: [1, 0] },
+  { id: "optic", x: 4,  y: 11, out: [1, 0] },
+  { id: "cafe",  x: 10, y: 5,  out: [-1, 0] },
+  { id: "cu",    x: 10, y: 7,  out: [-1, 0] }
+];
+DOORS.forEach(d => grid[d.y][d.x] = "d");
+fill(5, 5, 6, 6, "k");               // 낮 부스 천막 (왼쪽 로켓단 · 오른쪽 오박사)
+const BOOTHS = { 5: "rocket", 6: "oak" };
+const BOARD = [9, 13];
+grid[BOARD[1]][BOARD[0]] = "s";
+const walkable = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS && "gpfdqhe".includes(grid[y][x]);
+const doorAt = (x, y) => scene === "plaza" ? DOORS.find(d => d.x === x && d.y === y) : null;
+function doorForTap(x, y) {
+  if (scene !== "plaza") return null;
+  if (grid[y][x] !== "b" && grid[y][x] !== "d") return null;
+  if (x <= 4 && y >= 5) return DOORS.find(d => d.id === (y <= 9 ? "book" : "optic"));
+  if (x >= 10 && y >= 5) return DOORS.find(d => d.id === (y <= 6 ? "cafe" : "cu"));
+  return DOORS[0];
+}
+
+/* ===== 그리기 (모두 직접 그린 도트 · 부드러운 외곽선) ===== */
+const cv = document.getElementById("map"), ctx = cv.getContext("2d");
+cv.width = COLS * T; cv.height = ROWS * T;
+const base = document.createElement("canvas"); base.width = cv.width; base.height = cv.height;
+const b2 = base.getContext("2d");
+const px = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
+const rnd = (x, y, s = 0) => (((x + 11) * 73856093) ^ ((y + 7) * 19349663) ^ (s * 83492791)) >>> 0;
+function oval(c, cx, cy, rx, ry, col) { c.fillStyle = col; for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) { const dx = (x + .5 - cx) / rx, dy = (y + .5 - cy) / ry; if (dx * dx + dy * dy <= 1) c.fillRect(x, y, 1, 1); } }
+const at = (x, y) => (grid[y] && grid[y][x]) || "t";
+
+const C = {
+  g: "#88d070", g2: "#80c868", gd: "#60b050", gl: "#b8f0a0",
+  brick: "#e8a888", brick2: "#d89070", brickL: "#f8c8a8",
+  dirt: "#f0d8a0", dirtD: "#d8b878",
+  wall: "#a86050", wallD: "#884838", wallL: "#c07860", mortar: "#b87868",
+  roof: "#d8d0c0", roofD: "#b0a898", roofL: "#f0e8d8",
+  glass: "#98d0f0", glassL: "#d8f0ff", frame: "#583838",
+  ivy: "#58a040", ivyD: "#387828", ivyL: "#80c860",
+  teal: "#48b8b0", tealD: "#288880", tealL: "#88e0d8",
+  line: "#403848"
+};
+function grassTile(c, X, Y, x, y) {
+  px(c, X, Y, T, T, (x + y) % 2 ? C.g : C.g2);
+  for (let i = 0; i < 4; i++) { const r = rnd(x, y, i); if (r % 2) continue; const gx = X + 1 + r % 12, gy = Y + 2 + (r >>> 4) % 11; px(c, gx, gy, 1, 2, C.gd); px(c, gx + 2, gy, 1, 2, C.gd); px(c, gx + 1, gy - 1, 1, 2, C.gd); px(c, gx + 1, gy - 1, 1, 1, C.gl); }
+}
+function brickTile(c, X, Y, x, y) {
+  px(c, X, Y, T, T, C.brick);
+  for (let r = 0; r < 4; r++) { px(c, X, Y + r * 4 + 3, T, 1, C.brick2); const off = (r + y) % 2 ? 0 : 4; for (let k = off; k < T; k += 8) px(c, X + k, Y + r * 4, 1, 3, C.brick2); }
+  if (rnd(x, y) % 4 === 0) px(c, X + 2 + rnd(x, y) % 8, Y + 1 + (rnd(x, y) >>> 5) % 3 * 4, 3, 1, C.brickL);
+  if (at(x, y - 1) === "b") px(c, X, Y, T, 3, "rgba(80,40,40,.22)");
+  if (at(x - 1, y) === "b") px(c, X, Y, 3, T, "rgba(80,40,40,.16)");
+  if (at(x + 1, y) === "b") px(c, X + T - 2, Y, 2, T, "rgba(80,40,40,.12)");
+}
+function dirtTile(c, X, Y, x, y) {
+  px(c, X, Y, T, T, C.dirt);
+  const r = rnd(x, y); px(c, X + 3 + r % 8, Y + 4, 2, 1, C.dirtD); px(c, X + 8, Y + 10 + r % 3, 1, 1, C.dirtD);
+  if (at(x - 1, y) !== "p") { px(c, X, Y, 2, T, C.g); px(c, X + 2, Y, 1, T, C.dirtD); px(c, X + 1, Y + 4, 2, 2, C.g); px(c, X + 1, Y + 11, 2, 2, C.g); }
+  if (at(x + 1, y) !== "p") { px(c, X + T - 2, Y, 2, T, C.g); px(c, X + T - 3, Y, 1, T, C.dirtD); px(c, X + T - 3, Y + 7, 2, 2, C.g); }
+}
+function flowerTile(c, X, Y, x, y) {
+  grassTile(c, X, Y, x, y);
+  const cols = [["#f86880", "#c84058"], ["#ffffff", "#c8d0e0"], ["#f8d048", "#d09820"]];
+  [[2, 3], [9, 2], [5, 9], [11, 10]].forEach(([a, b], i) => { const [f, s] = cols[(i + x + y) % 3]; px(c, X + a + 1, Y + b + 3, 1, 2, "#40903a"); px(c, X + a, Y + b + 1, 3, 1, s); px(c, X + a + 1, Y + b, 1, 3, s); px(c, X + a + 1, Y + b + 1, 1, 1, "#f8e8a0"); });
+}
+function treeSprite(c, X, Y) {
+  oval(c, X + 8, Y + 14.5, 7, 2, "rgba(40,80,40,.3)");
+  px(c, X + 6, Y + 10, 4, 5, "#5a3820"); px(c, X + 7, Y + 10, 2, 5, "#8a5a30");
+  const blobs = [[8, 3, 5, 4], [4.5, 6.5, 4.5, 4], [11.5, 6.5, 4.5, 4], [8, 8, 6, 3.5]];
+  blobs.forEach(([x, y, rx, ry]) => oval(c, X + x, Y + y, rx + 1, ry + 1, "#306030"));
+  blobs.forEach(([x, y, rx, ry]) => oval(c, X + x, Y + y, rx, ry, "#48a040"));
+  [[7, 2.5, 3, 2], [4, 6, 2.5, 2], [11, 5.5, 2.5, 2]].forEach(([x, y, rx, ry]) => oval(c, X + x, Y + y, rx, ry, "#70c050"));
+  px(c, X + 6, Y + 1, 2, 1, "#a8e080"); px(c, X + 3, Y + 5, 1, 1, "#a8e080"); px(c, X + 10, Y + 4, 2, 1, "#a8e080");
+  px(c, X + 5, Y + 10, 6, 1, "#387830");
+}
+function lampSprite(c, X, Y) {
+  oval(c, X + 8, Y + 15, 4, 1.5, "rgba(40,80,40,.3)");
+  px(c, X + 7, Y + 4, 2, 11, "#484860"); px(c, X + 7, Y + 4, 1, 11, "#707090");
+  px(c, X + 5, Y + 1, 6, 4, "#484860"); px(c, X + 6, Y + 2, 4, 2, "#f8e888");
+  px(c, X + 5, Y + 14, 6, 2, "#484860");
+}
+function parasol(c, X, Y) {        // 2×2칸짜리 파라솔 테이블 (위에서 본 모습)
+  px(c, X + 2, Y + 20, 28, 10, "rgba(80,40,40,.2)");
+  px(c, X + 4, Y + 18, 24, 8, "#a07048"); px(c, X + 4, Y + 18, 24, 2, "#c89060"); px(c, X + 6, Y + 26, 2, 4, "#704828"); px(c, X + 24, Y + 26, 2, 4, "#704828");
+  px(c, X, Y + 1, 32, 17, C.line);
+  px(c, X + 1, Y + 2, 30, 15, C.teal);
+  for (let i = 0; i < 30; i += 6) px(c, X + 1 + i, Y + 2, 3, 15, C.tealD);
+  px(c, X + 1, Y + 2, 30, 2, C.tealL);
+  for (let i = 0; i < 32; i += 4) px(c, X + i, Y + 17, 3, 2, C.tealD);
+}
+function tent(c, X, Y, kind) {       // 1×2칸 부스 천막
+  const R = kind === "rocket";
+  const top = R ? "#383048" : "#f05858", stripe = R ? "#282038" : "#ffffff", body = R ? "#484060" : "#f8f0e8";
+  px(c, X + 1, Y + 28, 15, 3, "rgba(80,40,40,.22)");
+  px(c, X + 1, Y + 14, 14, 14, C.line); px(c, X + 2, Y + 15, 12, 12, body);
+  // 부스 직원
+  px(c, X + 5, Y + 13, 6, 6, C.line); px(c, X + 6, Y + 14, 4, 4, "#f8c8a0");
+  px(c, X + 5, Y + 11, 6, 3, R ? "#282030" : "#906040");
+  px(c, X + 4, Y + 19, 8, 4, R ? "#282030" : "#ffffff"); px(c, X + 7, Y + 19, 2, 4, R ? "#e84048" : "#98c0e8");
+  // 테이블
+  px(c, X, Y + 22, 16, 7, C.line); px(c, X + 1, Y + 23, 14, 5, R ? "#e84048" : "#f8f8f8"); px(c, X + 1, Y + 23, 14, 1, R ? "#ff7078" : "#ffffff");
+  if (R) { px(c, X + 6, Y + 24, 1, 3, "#fff"); px(c, X + 7, Y + 24, 2, 1, "#fff"); px(c, X + 9, Y + 25, 1, 1, "#fff"); px(c, X + 7, Y + 25, 2, 1, "#fff"); px(c, X + 8, Y + 26, 1, 1, "#fff"); px(c, X + 9, Y + 26, 1, 1, "#fff"); }
+  else { px(c, X + 4, Y + 24, 2, 2, "#e84048"); px(c, X + 7, Y + 24, 2, 2, "#48a0e8"); px(c, X + 10, Y + 24, 2, 2, "#f0c030"); }
+  // 천막 지붕
+  px(c, X, Y + 1, 16, 11, C.line); px(c, X + 1, Y + 2, 14, 9, top);
+  for (let i = 1; i < 15; i += 4) px(c, X + i, Y + 2, 2, 9, stripe);
+  for (let i = 0; i < 16; i += 4) { px(c, X + i, Y + 11, 3, 2, C.line); px(c, X + i + 1, Y + 11, 1, 1, top); }
+  px(c, X + 1, Y + 2, 14, 1, R ? "#585070" : "#ff9090");
+  px(c, X, Y + 12, 1, 16, C.line); px(c, X + 15, Y + 12, 1, 16, C.line);
+}
+function brickWall(c, X, Y, W, H) {
+  px(c, X, Y, W, H, C.wall);
+  for (let yy = 0; yy < H; yy += 3) { px(c, X, Y + yy, W, 1, C.wallD); const off = (yy / 3) % 2 ? 0 : 3; for (let k = off; k < W; k += 6) px(c, X + k, Y + yy + 1, 1, 2, C.mortar); }
+}
+function windowAt(c, X, Y, w = 8, h = 6) {
+  px(c, X - 1, Y - 1, w + 2, h + 2, C.frame); px(c, X, Y, w, h, C.glass); px(c, X, Y, w, 2, C.glassL); px(c, X + (w >> 1), Y, 1, h, C.frame); px(c, X + 1, Y + 2, 1, 1, "#fff");
+}
+function ivy(c, X, Y, W, H, seed) {
+  for (let i = 0; i < W * H / 10; i++) { const r = rnd(i, seed, 3), x = X + r % W, y = Y + (r >>> 8) % H; px(c, x, y, 3, 2, C.ivyD); px(c, x, y, 2, 1, C.ivy); if (r % 5 === 0) px(c, x + 1, y - 1, 1, 1, C.ivyL); }
+}
+function roof(c, X, Y, W, H) {
+  px(c, X, Y, W, H, C.roofD); px(c, X + 1, Y + 1, W - 2, H - 2, C.roof);
+  px(c, X + 1, Y + 1, W - 2, 2, C.roofL); px(c, X + 1, Y + 1, 2, H - 2, C.roofL);
+  for (let yy = Y + 6; yy < Y + H - 3; yy += 8) px(c, X + 4, yy, W - 8, 1, "#c8c0b0");
+}
+function drawStudentUnion(c) {
+  const t = T;
+  // 지붕: ㄷ자
+  roof(c, 1 * t, 1 * t - 2, 13 * t, 2 * t + 2);
+  roof(c, 1 * t, 3 * t - 4, 3 * t, 9 * t + 4);
+  roof(c, 11 * t, 3 * t - 4, 3 * t, 9 * t + 4);
+  px(c, 4 * t - 1, 3 * t - 4, 1, 9 * t + 4, C.roofD); px(c, 11 * t, 3 * t - 4, 1, 9 * t + 4, C.roofD);
+  [[3, 1.4], [10, 1.4], [2, 6], [12, 9], [1.5, 9.5], [12.2, 4.2]].forEach(([x, y]) => { px(c, x * t, y * t, 9, 7, C.roofD); px(c, x * t + 1, y * t + 1, 7, 4, "#e8e0d0"); px(c, x * t + 2, y * t + 2, 5, 1, C.roofD); });
+  [[6, 1.6], [7.3, 1.6], [8.6, 1.6]].forEach(([x, y]) => { px(c, x * t, y * t, 14, 10, "#6878a0"); px(c, x * t + 1, y * t + 1, 12, 8, "#8898c0"); for (let k = 2; k < 12; k += 3) px(c, x * t + k, y * t + 1, 1, 8, "#6878a0"); });
+  px(c, 2 * t - 4, 4 * t, 1, 4.5 * t, "#c8c0b0"); px(c, 13 * t - 4, 4 * t, 1, 4.5 * t, "#c8c0b0");
+  // 본관 남쪽 벽 (4층 창 줄 + 가운데 통로)
+  brickWall(c, 4 * t, 3 * t, 7 * t, 2 * t);
+  for (let i = 0; i < 6; i++) { windowAt(c, 4 * t + 4 + i * 18, 3 * t + 3, 8, 5); }
+  px(c, 5 * t, 4 * t, 5 * t, 2, "#e8e0d0");
+  px(c, 5 * t + 2, 4 * t + 2, 5 * t - 4, 14, "#302830");
+  [5 * t + 2, 6 * t + 10, 8 * t + 4, 10 * t - 6].forEach(x => { px(c, x, 4 * t + 2, 4, 14, C.wall); px(c, x, 4 * t + 2, 1, 14, C.wallL); });
+  px(c, 7 * t + 2, 4 * t + 4, 12, 12, "#78b060"); px(c, 7 * t + 2, 4 * t + 4, 12, 3, "#98c880");
+  px(c, 8 * t + 10, 3 * t + 2, 10, 13, "#f0c030"); px(c, 8 * t + 11, 3 * t + 3, 8, 11, "#3868b8"); px(c, 8 * t + 12, 3 * t + 5, 3, 3, "#e84860"); px(c, 8 * t + 15, 3 * t + 9, 3, 2, "#f0c030");
+  px(c, 5 * t + 4, 3 * t + 12, 18, 7, "#2868a8"); px(c, 5 * t + 5, 3 * t + 13, 16, 5, "#58a8e0");
+  // 날개 안쪽 벽 (광장 쪽)
+  brickWall(c, 4 * t, 5 * t, t, 7 * t); brickWall(c, 10 * t, 5 * t, t, 7 * t);
+  px(c, 4 * t, 5 * t, 2, 7 * t, C.wallD); px(c, 11 * t - 2, 5 * t, 2, 7 * t, C.wallD);
+  for (let r = 0; r < 7; r++) { if (r !== 2 && r !== 6) windowAt(c, 4 * t + 5, 5 * t + 4 + r * 16, 6, 7); if (r !== 0 && r !== 2) windowAt(c, 10 * t + 5, 5 * t + 4 + r * 16, 6, 7); }
+  // 날개 남쪽 벽
+  brickWall(c, 1 * t, 12 * t, 4 * t, 2 * t); brickWall(c, 10 * t, 12 * t, 4 * t, 2 * t);
+  for (let i = 0; i < 3; i++) { windowAt(c, 1 * t + 6 + i * 18, 12 * t + 4, 8, 6); windowAt(c, 10 * t + 6 + i * 18, 12 * t + 4, 8, 6); }
+  px(c, 1 * t + 4, 13 * t + 3, 24, 7, "#f8f8f8"); px(c, 1 * t + 5, 13 * t + 4, 22, 5, "#e84040"); px(c, 1 * t + 7, 13 * t + 6, 8, 1, "#fff"); px(c, 1 * t + 17, 13 * t + 6, 8, 1, "#fff");
+  px(c, 11 * t + 2, 13 * t + 3, 26, 7, "#205838"); px(c, 11 * t + 4, 13 * t + 5, 22, 3, "#f0f0e0");
+  ivy(c, 1 * t, 12 * t, 20, 2 * t, 1); ivy(c, 13 * t - 6, 12 * t, 20, 2 * t, 2); ivy(c, 4 * t, 5 * t, 7, 40, 3); ivy(c, 10 * t + 9, 5 * t + 70, 7, 38, 4);
+  px(c, 1 * t, 14 * t - 2, 13 * t, 2, "rgba(60,30,30,.3)");
+}
+function doorSprite(c, d) {
+  const X = d.x * T, Y = d.y * T;
+  if (d.id === "hall") return;
+  const colors = { book: ["#e84040", "#fff"], optic: ["#f8f8f8", "#e84040"], cu: ["#6848b8", "#a0d840"], cafe: ["#205838", "#f0e8c8"] }[d.id];
+  const left = d.out[0] > 0;
+  px(c, X + 2, Y + 1, 12, 15, C.frame); px(c, X + 3, Y + 2, 10, 13, "#88c8e8"); px(c, X + 8, Y + 2, 1, 13, C.frame); px(c, X + 4, Y + 3, 2, 4, "#e0f4ff");
+  const sx = left ? X + 13 : X - 5;
+  px(c, sx, Y + 1, 8, 10, C.line); px(c, sx + 1, Y + 2, 6, 8, colors[0]); px(c, sx + 2, Y + 4, 4, 1, colors[1]); px(c, sx + 2, Y + 6, 3, 1, colors[1]);
+  px(c, left ? X + 16 : X - 2, Y + 11, 3, 5, "rgba(80,40,40,.2)");
+}
+function boardSprite(c, X, Y) {
+  oval(c, X + 8, Y + 15, 7, 1.5, "rgba(80,40,40,.25)");
+  px(c, X + 3, Y + 9, 2, 7, "#704828"); px(c, X + 11, Y + 9, 2, 7, "#704828");
+  px(c, X, Y - 3, 16, 14, "#704828"); px(c, X + 1, Y - 2, 14, 12, "#c89060"); px(c, X + 1, Y - 2, 14, 2, "#e0b080");
+  px(c, X + 3, Y, 10, 9, C.line); px(c, X + 4, Y + 1, 8, 7, "#1b2442"); px(c, X + 4, Y + 1, 8, 2, "#e8483c"); px(c, X + 5, Y + 4, 2, 2, "#e8483c"); px(c, X + 9, Y + 4, 2, 2, "#4d7fd6"); px(c, X + 7, Y + 5, 2, 1, "#f4c430"); px(c, X + 5, Y + 7, 6, 1, "#f4c430");
+}
+
+for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+  const v = grid[y][x], X = x * T, Y = y * T;
+  if (v === "q" || v === "x" || v === "s" || v === "k") brickTile(b2, X, Y, x, y);
+  else if (v === "p") dirtTile(b2, X, Y, x, y);
+  else if (v === "f") flowerTile(b2, X, Y, x, y);
+  else grassTile(b2, X, Y, x, y);
+}
+drawStudentUnion(b2);
+DOORS.forEach(d => doorSprite(b2, d));
+parasol(b2, 5 * T, 8 * T); parasol(b2, 8 * T, 8 * T);
+tent(b2, 5 * T, 5 * T, "rocket"); tent(b2, 6 * T, 5 * T, "oak");
+for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+  const v = grid[y][x], X = x * T, Y = y * T;
+  if (v === "t") treeSprite(b2, X, Y); else if (v === "o") lampSprite(b2, X, Y); else if (v === "s") boardSprite(b2, X, Y);
+}
+
+/* 주인공: 안전모 쓴 공대생 (12×16, 방향 4개 · 걷기 2프레임) */
+const HP = { K: "#403040", Y: "#f8c838", y: "#d09820", W: "#ffffff", S: "#f8c8a0", s: "#e0a078", H: "#604028", E: "#403040", B: "#4070c8", b: "#305098", O: "#f88840", P: "#484860" };
+const HERO = {
+  down: ["...KKKKKK...", "..KYYYYYYK..", ".KYYWYYYYyK.", ".KKKKKKKKKK.", ".KHSSSSSSHK.", ".KSESSSSESK.", ".KsSSSSSSsK.", "..KKsSSsKK..", "..KBBWWBBK..", ".KBBBBBBBbK.", ".KOOOOOOOOK.", ".KBBBBBBBbK.", ".KSKBBBBKSK.", "..KPPPPPPK.."],
+  up:   ["...KKKKKK...", "..KYYYYYYK..", ".KYYYYYYYyK.", ".KKKKKKKKKK.", ".KHHHHHHHHK.", ".KHHHHHHHHK.", ".KHHHHHHHHK.", "..KKHHHHKK..", "..KBBBBBBK..", ".KBBBBBBBbK.", ".KOOOOOOOOK.", ".KBBBBBBBbK.", ".KSKBBBBKSK.", "..KPPPPPPK.."],
+  right:["...KKKKKK...", "..KYYYYYYK..", ".KYYYYWYYyK.", ".KKKKKKKKKKK", ".KHHSSSSSK..", ".KHSSSSESK..", ".KHSSSSSsK..", "..KKsSSKK...", "...KBBBBK...", "..KBBBBBBK..", "..KOOOOOOK..", "..KBBBSBBK..", "..KBBBBBBK..", "...KPPPPK..."]
+};
+const LEGS = { still: ["..KPPKKPPK..", "..KKK..KKK.."], a: ["..KPPK.KPK..", "..KKK...KK.."], b: ["..KPK.KPPK..", "..KK...KKK.."] };
+const LEGS_SIDE = { still: ["...KPKKPK...", "...KKK.KK..."], a: ["..KPK..KPK..", "..KK....KK.."], b: ["...KPKPK....", "...KKKKK...."] };
+function hero(c, X, Y, dir, frame) {
+  const side = dir === "left" || dir === "right", rows = HERO[side ? "right" : dir];
+  const legs = (side ? LEGS_SIDE : LEGS)[frame === 0 ? "still" : frame === 1 ? "a" : "b"];
+  const lift = frame ? -1 : 0;
+  oval(c, X + 8, Y + 17, 5, 1.5, "rgba(60,30,30,.25)");
+  [...rows, ...legs].forEach((row, ry) => [...row].forEach((ch, rx) => { if (!HP[ch]) return; const xx = dir === "left" ? 11 - rx : rx; px(c, X + 2 + xx, Y + ry + lift + 2, 1, 1, HP[ch]); }));
+}
+function bubble(c, t) {
+  const X = BOARD[0] * T + 4, Y = BOARD[1] * T - 15 + (Math.floor(t / 400) % 2);
+  px(c, X - 1, Y - 1, 10, 10, C.line); px(c, X, Y, 8, 8, "#fff"); px(c, X + 3, Y + 1, 2, 4, "#e8483c"); px(c, X + 3, Y + 6, 2, 1, "#e8483c"); px(c, X + 2, Y + 9, 3, 2, C.line); px(c, X + 3, Y + 8, 1, 2, "#fff");
+}
+
+/* 이름표 (글자는 HTML로 선명하게) */
+const tags = document.getElementById("tags");
+function addTag(text, x, y, main, extra) { const d = document.createElement("div"); d.className = "tag" + (main ? " main" : "") + (extra ? " " + extra : ""); d.textContent = text; d.style.left = (x / COLS * 100) + "%"; d.style.top = (y / ROWS * 100) + "%"; tags.appendChild(d); }
+/* ===== 대강당 내부 (학생회관 5층) ===== */
+const PLAZA_GRID = grid, PLAZA_BASE = base;
+const HG = Array.from({ length: ROWS }, () => Array(COLS).fill("h"));
+const hfill = (x0, y0, x1, y1, v) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) HG[y][x] = v; };
+hfill(0, 0, 14, 2, "W"); hfill(0, 0, 0, 20, "W"); hfill(14, 0, 14, 20, "W"); hfill(0, 20, 14, 20, "W");
+hfill(1, 3, 13, 6, "S");                       // 무대
+hfill(2, 12, 6, 17, "c"); hfill(8, 12, 12, 17, "c");   // 객석
+HG[9][12] = "r";                               // 경품 추첨함
+HG[20][7] = "e";                               // 출구 (엘리베이터)
+const STATION = x => x <= 4 ? "gym" : x <= 9 ? "contest" : "battle";
+const STATION_X = { gym: 3, contest: 7, battle: 11 };
+
+const hallBase = document.createElement("canvas"); hallBase.width = cv.width; hallBase.height = cv.height;
+(function drawHall(c) {
+  const t = T;
+  // 나무 바닥
+  px(c, 0, 0, cv.width, cv.height, "#d8a868");
+  for (let y = 0; y < cv.height; y += 6) { px(c, 0, y, cv.width, 1, "#c09050"); for (let x = (y / 6 % 2) * 20; x < cv.width; x += 40) px(c, x, y, 1, 6, "#c09050"); }
+  for (let i = 0; i < 40; i++) { const r = rnd(i, 9, 2); px(c, r % cv.width, (r >>> 9) % cv.height, 3, 1, "#e8c088"); }
+  // 가운데 통로 카펫
+  px(c, 7 * t + 1, 7 * t, t - 2, 13 * t, "#b83848"); px(c, 7 * t + 1, 7 * t, 2, 13 * t, "#d85060"); px(c, 8 * t - 3, 7 * t, 2, 13 * t, "#982838");
+  // 뒷벽 + 커튼 + 스크린
+  px(c, 0, 0, cv.width, 3 * t, "#4a3a5a");
+  for (let x = 0; x < cv.width; x += 8) px(c, x, 0, 4, 3 * t, "#3a2a4a");
+  px(c, 4 * t, 4, 7 * t, 2 * t + 2, "#282030"); px(c, 4 * t + 2, 6, 7 * t - 4, 2 * t - 2, "#3868b8");
+  px(c, 4 * t + 2, 6, 7 * t - 4, 4, "#5888d8");
+  px(c, 6 * t, 12, 10, 10, "#e84048"); px(c, 9 * t - 4, 12, 10, 10, "#4878d8"); px(c, 7 * t + 5, 15, 8, 4, "#f4c430");
+  [[0, 3], [11, 3]].forEach(([x, w]) => { px(c, x * t, 0, w * t + (x ? t : 0), 3 * t + 4, "#b82838"); for (let i = 0; i < w * t + t; i += 6) px(c, x * t + i, 0, 2, 3 * t + 4, "#901828"); });
+  px(c, 0, 0, cv.width, 5, "#901828"); for (let i = 0; i < cv.width; i += 8) px(c, i, 5, 6, 3, "#b82838");
+  // 무대
+  px(c, t, 3 * t, 13 * t, 4 * t, "#8a5a3a");
+  for (let y = 3 * t; y < 7 * t; y += 5) px(c, t, y, 13 * t, 1, "#704830");
+  px(c, t, 7 * t - 5, 13 * t, 5, "#4a2e20"); px(c, t, 7 * t - 5, 13 * t, 1, "#a87050");
+  px(c, t, 7 * t, 13 * t, 3, "rgba(40,20,20,.25)");
+  // 콘테스트 런웨이 + 조명
+  px(c, 6 * t + 2, 3 * t + 2, 3 * t - 4, 4 * t - 8, "#e85868"); px(c, 6 * t + 2, 3 * t + 2, 3 * t - 4, 2, "#ff8898");
+  oval(c, 7.5 * t, 5 * t, 14, 10, "rgba(255,240,160,.35)");
+  for (let i = 0; i < 5; i++) px(c, 6 * t + 4 + i * 9, 3 * t + 3, 3, 3, "#f8e070");
+  // 도장깨기 코너: 매트 + 깃발 + 배지 받침대
+  px(c, 2 * t, 4 * t, 3 * t - 2, 2 * t, "#3858a8"); px(c, 2 * t + 2, 4 * t + 2, 3 * t - 6, 2 * t - 4, "#4878d8");
+  oval(c, 3.4 * t, 5 * t, 9, 7, "#f8f8f8"); oval(c, 3.4 * t, 5 * t, 7, 5, "#4878d8");
+  px(c, 2 * t + 2, 3 * t + 1, 2, 16, "#403848"); px(c, 2 * t + 4, 3 * t + 1, 10, 7, "#f4c430"); px(c, 2 * t + 6, 3 * t + 3, 6, 3, "#e84048");
+  px(c, 4 * t + 6, 3 * t + 4, 8, 10, "#403848"); px(c, 4 * t + 7, 3 * t + 5, 6, 8, "#c8a060"); px(c, 4 * t + 8, 3 * t + 6, 4, 4, "#f4c430");
+  // 배틀 코너: 마주 보는 단상 두 개
+  [[10, "#e84048"], [12, "#4878d8"]].forEach(([x, col]) => { px(c, x * t + 1, 4 * t + 2, 14, 16, "#403848"); px(c, x * t + 2, 4 * t + 3, 12, 14, col); px(c, x * t + 4, 4 * t + 5, 8, 4, "#ffffff"); px(c, x * t + 5, 4 * t + 6, 6, 2, "#303848"); });
+  px(c, 11 * t + 3, 4 * t + 8, 10, 6, "#f4c430"); px(c, 11 * t + 5, 4 * t + 9, 6, 4, "#403848"); px(c, 11 * t + 6, 4 * t + 10, 4, 2, "#f8f8f8");
+  // 계단
+  [[2, 7], [12, 7]].forEach(([x]) => { px(c, x * t, 7 * t - 5, t, 5, "#6a4a3a"); px(c, x * t, 7 * t - 3, t, 1, "#a87050"); });
+  // 벽 (좌우, 아래)
+  [[0], [14]].forEach(([x]) => { px(c, x * t, 3 * t, t, 18 * t, "#5a4a6a"); px(c, x * t + (x ? 0 : t - 2), 3 * t, 2, 18 * t, "#3a2a4a"); for (let y = 9; y < 20; y += 4) { px(c, x * t + 4, y * t, 8, 6, "#f8e088"); px(c, x * t + 5, y * t + 6, 6, 2, "#3a2a4a"); } });
+  px(c, 0, 20 * t, cv.width, t, "#5a4a6a"); px(c, 0, 20 * t, cv.width, 2, "#3a2a4a");
+  px(c, 6 * t + 4, 20 * t + 1, 3 * t - 8, t - 1, "#303040"); px(c, 6 * t + 6, 20 * t + 3, 3 * t - 12, t - 3, "#a0a8b8"); px(c, 7 * t + 7, 20 * t + 3, 2, t - 3, "#303040");
+  px(c, 7 * t + 4, 20 * t - 6, 8, 5, "#48c878");
+  // 객석
+  for (let y = 12; y <= 17; y++) for (let x = 2; x <= 12; x++) { if (x === 7) continue;
+    const X = x * t, Y = y * t;
+    px(c, X + 1, Y + 10, 14, 5, "rgba(40,20,20,.2)");
+    px(c, X + 2, Y + 2, 12, 11, "#403040"); px(c, X + 3, Y + 3, 10, 5, "#c83848"); px(c, X + 3, Y + 3, 10, 1, "#e85868"); px(c, X + 3, Y + 8, 10, 4, "#a02838");
+  }
+  // 경품 추첨함
+  const RX = 12 * t, RY = 9 * t;
+  px(c, RX, RY + 8, 16, 8, "#704828"); px(c, RX + 1, RY + 8, 14, 2, "#a07048");
+  px(c, RX + 2, RY - 2, 12, 11, "#403848"); px(c, RX + 3, RY - 1, 10, 9, "#f4c430"); px(c, RX + 3, RY - 1, 10, 2, "#f8e070");
+  px(c, RX + 5, RY + 1, 6, 2, "#403848"); px(c, RX + 5, RY + 4, 2, 2, "#e84048"); px(c, RX + 9, RY + 4, 2, 2, "#4878d8");
+})(hallBase.getContext("2d"));
+
+const SCENES = {
+  plaza: { grid: PLAZA_GRID, base: PLAZA_BASE, tags: () => {
+    addTag("학생회관 · 5F 대강당", 7.5, 1.55, true);
+    addTag("서점", 2.5, 7.5); addTag("안경점", 2.5, 11.5); addTag("그라찌에", 12.5, 5.5); addTag("CU", 12.5, 7.6);
+    addTag("배틀 포스터", 11.4, 14.6); addTag("낮 부스", 6, 4.72, false, "day");
+  } },
+  hall: { grid: HG, base: hallBase, tags: () => {
+    addTag("5F 대강당", 7.5, 0.55, true);
+    addTag("도장깨기", 3, 6.35); addTag("콘테스트", 7.5, 6.35); addTag("배틀 결승", 12, 6.35);
+    addTag("경품 추첨", 12.5, 10.7); addTag("출구", 7.5, 19.45);
+  } }
+};
+let scene = "plaza", curBase = PLAZA_BASE;
+
+SCENES.plaza.tags();
+const fadeEl = document.getElementById("fade");
+function goScene(name, x, y, dir, then) {
+  lock = true; route = []; held = null; onArrive = null;
+  fadeEl.classList.add("on"); sfx.warp();
+  setTimeout(() => {
+    scene = name; grid = SCENES[name].grid; curBase = SCENES[name].base;
+    tags.innerHTML = ""; SCENES[name].tags(); if (bgmOn) bgmPlay(name);
+    P.x = x; P.y = y; P.from = [x, y]; P.t = 1; P.dir = dir;
+    fadeEl.classList.remove("on");
+    setTimeout(() => { if (then) then(); else lock = false; }, 260);
+  }, 280);
+}
+let hallVisited = false;
+
+/* ===== 소리: 효과음 + 오리지널 칩튠 배경음악 (파일 없이 브라우저가 직접 연주) ===== */
+let AC = null, sfxOn = false, bgmOn = false, master = null;
+function unlockAudio() {
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (_) {}
+  // 구형 iOS: 무음 오디오를 '반복 재생'으로 켜 두어야 소리 세션이 중간에 끊기지 않음 (한 번만 생성)
+  try { if (!navigator.audioSession && !window.__keepAlive) { const k = new Audio("data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=="); k.loop = true; k.volume = 0.01; k.play().catch(() => {}); window.__keepAlive = k; } } catch (_) {}
+  try { if (!AC) { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 1; master.connect(AC.destination); } AC.resume(); } catch (_) {}
+}
+function tone(freq, start, dur, vol, type = "square") {
+  if (!AC) return;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(vol, start + 0.01);
+  g.gain.linearRampToValueAtTime(vol * 0.6, start + Math.min(0.08, dur * 0.4));
+  g.gain.linearRampToValueAtTime(0, start + dur);
+  o.connect(g); g.connect(master); o.start(start); o.stop(start + dur + 0.02);
+}
+const sfx = {
+  blip(i) { if (sfxOn && AC) tone(760 + (i % 3) * 60, AC.currentTime, 0.03, 0.035); },
+  next() { if (sfxOn && AC) tone(1040, AC.currentTime, 0.05, 0.04); },
+  bump() { if (sfxOn && AC && Date.now() - (sfx._b || 0) > 260) { sfx._b = Date.now(); tone(130, AC.currentTime, 0.08, 0.06, "triangle"); } },
+  door() { if (!sfxOn || !AC) return; const t = AC.currentTime; [523, 659, 784].forEach((f, i) => tone(f, t + i * 0.07, 0.09, 0.04)); },
+  warp() { if (!sfxOn || !AC) return; const t = AC.currentTime; [784, 659, 523, 392].forEach((f, i) => tone(f, t + i * 0.06, 0.08, 0.035, "triangle")); },
+  open() { if (!sfxOn || !AC) return; const t = AC.currentTime; tone(880, t, 0.06, 0.04); tone(1320, t + 0.07, 0.1, 0.04); },
+  fanfare() { if (!sfxOn || !AC) return; const t = AC.currentTime; [[523, 0], [659, .1], [784, .2], [1047, .3]].forEach(([f, d]) => tone(f, t + d, d === .3 ? 0.3 : 0.1, 0.045)); },
+  close() { if (sfxOn && AC) tone(620, AC.currentTime, 0.05, 0.03); }
+};
+
+/* 악보: 8분음표 한 칸씩, "-"는 앞 음 늘이기, "."은 쉼표 */
+const SONGS = {
+  plaza: { bpm: 96,
+    lead: "C5 - F5 - A5 - G5 F5 E5 - - - F5 - G5 - A5 - C6 - A5 - G5 F5 G5 - - - . . . . D5 - F5 - A5 - G5 F5 C5 - - - D5 - E5 - F5 - A5 - G5 - E5 - F5 - - - . . . .",
+    bass: "F2 - C3 - A2 - C3 - C3 - G2 - E3 - G2 - F2 - C3 - A2 - C3 - C3 - G2 - C3 - E3 - A#2 - F3 - D3 - F3 - A2 - E3 - C3 - E3 - A#2 - F3 - C3 - E3 - F2 - C3 - F3 - . -" },
+  hall: { bpm: 116,
+    lead: "G4 - C5 - E5 - G5 - A5 - G5 - E5 - C5 - F5 - E5 - D5 - C5 D5 E5 - - - G4 - - - G4 - C5 - E5 - G5 - C6 - B5 - A5 - G5 - F5 - A5 - G5 - D5 - C5 - - - . . . .",
+    bass: "C3 - G3 - C3 - G3 - F2 - C3 - F2 - C3 - D3 - A2 - G2 - B2 - C3 - G2 - C3 - G2 - C3 - G3 - E3 - G3 - A2 - E3 - F2 - C3 - D3 - F3 - G2 - B2 - C3 - G2 - C3 - . -" }
+};
+const NOTE = n => { const m = /^([A-G])(#?)(\d)$/.exec(n); const k = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] ? 1 : 0); return 440 * Math.pow(2, (k + (+m[3] + 1) * 12 - 69) / 12); };
+function parse(str) { const tk = str.trim().split(/\s+/), out = []; tk.forEach((x, i) => { if (x === "-" || x === ".") return; let len = 1; while (tk[i + len] === "-") len++; out.push({ at: i, len, f: NOTE(x) }); }); return { notes: out, steps: tk.length }; }
+Object.values(SONGS).forEach(s => { s.L = parse(s.lead); s.B = parse(s.bass); });
+let bgmTimer = null, bgmSong = null, bgmStart = 0, bgmNextStep = 0;
+function bgmPlay(name) {
+  if (!bgmOn || !AC) return;
+  bgmSong = SONGS[name]; bgmNextStep = 0; bgmStart = AC.currentTime + 0.1;
+  clearInterval(bgmTimer);
+  bgmTimer = setInterval(() => {
+    const s = bgmSong, eighth = 60 / s.bpm / 2, horizon = AC.currentTime + 0.6;
+    if (bgmStart + bgmNextStep * eighth < AC.currentTime - 0.1) bgmNextStep = Math.ceil((AC.currentTime - bgmStart) / eighth);   // 밀렸으면 현재 박자로 따라잡기
+    while (bgmStart + bgmNextStep * eighth < horizon) {
+      const loopStep = bgmNextStep % s.L.steps, t0 = bgmStart + bgmNextStep * eighth;
+      s.L.notes.filter(n => n.at === loopStep).forEach(n => tone(n.f, t0, n.len * eighth * 0.92, 0.028));
+      s.B.notes.filter(n => n.at === loopStep).forEach(n => tone(n.f, t0, n.len * eighth * 0.95, 0.06, "triangle"));
+      bgmNextStep++;
+    }
+  }, 100);
+}
+function bgmStop() { clearInterval(bgmTimer); bgmTimer = null; }
+
+/* ===== 이동 ===== */
+const P = { x: 7, y: 18, dir: "up", t: 1, from: [7, 18] };
+let route = [], held = null, lock = true, onArrive = null, stepCount = 0;
+const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const SPEED = 150;
+
+function tryStep(dir) {
+  P.dir = dir;
+  const [dx, dy] = DIRS[dir], nx = P.x + dx, ny = P.y + dy;
+  if (walkable(nx, ny)) { P.from = [P.x, P.y]; P.x = nx; P.y = ny; P.t = 0; stepCount++; return true; }
+  if (grid[ny] && grid[ny][nx] === "s") openPoster();
+  if (grid[ny] && grid[ny][nx] === "k") openBooth(BOOTHS[nx]);
+  if (grid[ny] && grid[ny][nx] === "S") openStation(STATION(nx));
+  if (grid[ny] && grid[ny][nx] === "r") openStation("raffle");
+  if (grid[ny] && !"skSr".includes(grid[ny][nx])) sfx.bump();
+  return false;
+}
+function arrived() {
+  const dr = doorAt(P.x, P.y);
+  if (dr) { route = []; held = null; onArrive = null; sfx.door(); enter(dr); return; }
+  if (scene === "hall" && grid[P.y][P.x] === "e") { route = []; held = null; onArrive = null; return leaveHall(); }
+  if (onArrive && !route.length) { const f = onArrive; onArrive = null; f(); }
+}
+function bfs(tx, ty) {
+  const key = (x, y) => y * COLS + x, prev = new Map([[key(P.x, P.y), null]]), q = [[P.x, P.y]];
+  while (q.length) {
+    const [x, y] = q.shift();
+    if (x === tx && y === ty) { const out = []; let k = key(x, y); while (prev.get(k) !== null) { out.unshift([k % COLS, Math.floor(k / COLS)]); k = prev.get(k); } return out; }
+    for (const [dx, dy] of Object.values(DIRS)) { const nx = x + dx, ny = y + dy, k = key(nx, ny); if (walkable(nx, ny) && !prev.has(k)) { prev.set(k, key(x, y)); q.push([nx, ny]); } }
+  }
+  return null;
+}
+function goTo(tx, ty, then) {
+  const r = bfs(tx, ty); if (!r) return;
+  route = r.map(([x, y], i) => { const [px0, py0] = i ? r[i - 1] : [P.x, P.y]; return x > px0 ? "right" : x < px0 ? "left" : y > py0 ? "down" : "up"; });
+  onArrive = then || null;
+  if (!route.length && then) { onArrive = null; then(); }
+}
+function tapAt(tx, ty) {
+  if (lock) return;
+  const dr = doorForTap(tx, ty);
+  if (dr) return goTo(dr.x, dr.y);
+  if (scene === "hall") {
+    const v = grid[ty][tx];
+    if (v === "S" || (v === "W" && ty <= 2)) { const id = STATION(tx); return goTo(STATION_X[id], 7, () => { P.dir = "up"; openStation(id); }); }
+    if (v === "r") return goTo(11, 9, () => { P.dir = "right"; openStation("raffle"); });
+    if (v === "e" || (v === "W" && ty === 20)) return goTo(7, 20);
+    if (walkable(tx, ty)) goTo(tx, ty);
+    return;
+  }
+  if (grid[ty][tx] === "k") { const id = BOOTHS[tx]; return goTo(tx, 7, () => { P.dir = "up"; openBooth(id); }); }
+  if (grid[ty][tx] === "s") { const [bx, by] = BOARD; return goTo(bx, by + 1, () => { P.dir = "up"; openPoster(); }); }
+  if (walkable(tx, ty)) goTo(tx, ty);
+}
+cv.addEventListener("click", e => {
+  if (!dlg.hidden) return advance();
+  const r = cv.getBoundingClientRect();
+  tapAt(Math.floor((e.clientX - r.left) / r.width * COLS), Math.floor((e.clientY - r.top) / r.height * ROWS));
+});
+
+let last = performance.now();
+function loop(now) {
+  const dt = now - last; last = now;
+  if (P.t < 1) { P.t = Math.min(1, P.t + dt / SPEED); if (P.t >= 1) arrived(); }
+  if (P.t >= 1 && !lock) { if (route.length) tryStep(route.shift()) || (route = []); else if (held) tryStep(held); }
+  const fx = P.from[0] + (P.x - P.from[0]) * P.t, fy = P.from[1] + (P.y - P.from[1]) * P.t;
+  ctx.drawImage(curBase, 0, 0);
+  if (scene === "plaza") bubble(ctx, now);
+  hero(ctx, Math.round(fx * T), Math.round(fy * T) - 4, P.dir, P.t < 1 ? 1 + (stepCount % 2) : 0);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ===== 대화창 ===== */
+const dlg = document.getElementById("dialog"), lineEl = document.getElementById("line"), nextEl = document.getElementById("next");
+let lines = [], after = null, typing = false, full = "", timer = null;
+function say(arr, then) { lock = true; route = []; held = null; lines = [...arr]; after = then; dlg.hidden = false; showNext(); }
+function showNext() {
+  full = lines.shift(); typing = true; nextEl.hidden = true; lineEl.textContent = ""; let i = 0; clearInterval(timer);
+  timer = setInterval(() => { lineEl.textContent = full.slice(0, ++i); if (full[i - 1] && full[i - 1].trim()) sfx.blip(i); if (i >= full.length) done(); }, 40);
+}
+function done() { clearInterval(timer); lineEl.textContent = full; typing = false; nextEl.hidden = false; }
+function advance() {
+  if (dlg.hidden) return;
+  if (typing) return done();
+  if (lines.length) { sfx.next(); return showNext(); }
+  dlg.hidden = true; const f = after; after = null; if (f) f(); else lock = false;
+}
+dlg.addEventListener("click", e => { e.stopPropagation(); advance(); });
+
+/* ===== 장소 들어가기 ===== */
+const placeOv = document.getElementById("placeOv"), placeCard = document.getElementById("placeCard");
+function stepOut(d) { P.from = [d.x, d.y]; P.x = d.x + d.out[0]; P.y = d.y + d.out[1]; P.t = 0; P.dir = d.out[0] > 0 ? "right" : d.out[0] < 0 ? "left" : "down"; }
+function enter(d) {
+  if (d.id === "hall") return say(["학생회관이라네. 엘리베이터를 타고 5층 대강당으로 올라가 보지!"], () => goScene("hall", 7, 19, "up", () => {
+    if (hallVisited) { lock = false; return; }
+    hallVisited = true;
+    say(["여기가 5층 대강당! 공대인의 밤 저녁 무대라네.", "행사는 도장깨기, 포켓몬 콘테스트, 포켓몬 배틀 결승이지.", "경품 추첨도 있으니 둘러보게. 나갈 땐 아래 출구로!"]);
+  }));
+  const pl = PLACES[d.id];
+  say(pl.talk, () => {
+    if (!pl.events) { stepOut(d); lock = false; return; }
+    showPlace([d.id], () => { stepOut(d); });
+  });
+}
+function showPlace(ids, onClose) {
+  placeCard.innerHTML = ids.map(id => {
+    const pl = PLACES[id];
+    return `${pl.badge ? `<span class="when ${pl.badge === "낮" ? "day" : "night"}">${pl.badge}</span>` : ""}<h2>${pl.name}</h2><p class="sub">${pl.sub}</p>` + pl.events.map((e, i) =>
+      `<div class="ev${e.hot ? " hot" : ""}"><div class="no">${i + 1}</div><div><strong>${e.t}</strong><span>${e.d}</span>${e.poster ? `<br><button data-poster>포스터 보기</button>` : ""}</div></div>`).join("") + (pl.note || "");
+  }).join('<div class="divider"></div>') + '<button class="close" id="placeClose">닫기</button>';
+  placeOv.hidden = false; lock = true; sfx.open();
+  const close = () => { sfx.close(); placeOv.hidden = true; lock = false; if (onClose) onClose(); };
+  document.getElementById("placeClose").onclick = close;
+  placeCard.querySelectorAll("[data-poster]").forEach(b => b.onclick = () => { placeOv.hidden = true; openPoster(() => { placeOv.hidden = false; lock = true; }); });
+  placeOv.onclick = e => { if (e.target === placeOv) close(); };
+  document.getElementById("placeClose").focus({ preventScroll: true });
+}
+
+function openStation(id) { route = []; held = null; say(PLACES[id].talk, () => showPlace([id])); }
+function leaveHall() { const d = DOORS[0]; say(["광장으로 내려가자."], () => goScene("plaza", d.x, d.y + 1, "down")); }
+function openBooth(id) { route = []; held = null; say(PLACES[id].talk, () => showPlace([id])); }
+
+/* ===== 포스터 ===== */
+const posterOv = document.getElementById("posterOv");
+let posterBack = null;
+function openPoster(back) { sfx.fanfare(); route = []; held = null; lock = true; posterBack = back || null; posterOv.hidden = false; document.getElementById("posterClose").focus({ preventScroll: true }); }
+function closePoster() { sfx.close(); posterOv.hidden = true; if (posterBack) { const f = posterBack; posterBack = null; f(); } else lock = false; }
+document.getElementById("posterClose").onclick = closePoster;
+posterOv.onclick = e => { if (e.target === posterOv) closePoster(); };
+document.getElementById("applyBtn").onclick = () => { document.getElementById("applyMsg").textContent = "신청 링크를 준비하고 있어요. 곧 열립니다!"; };
+
+/* ===== 조작 ===== */
+document.querySelectorAll(".dpad button").forEach(btn => {
+  const d = btn.dataset.d;
+  btn.addEventListener("pointerdown", e => { e.preventDefault(); if (lock) return; route = []; onArrive = null; held = d; btn.classList.add("on"); });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(ev => btn.addEventListener(ev, () => { if (held === d) held = null; btn.classList.remove("on"); }));
+});
+function interact() {
+  if (!dlg.hidden) return advance();
+  if (lock) return;
+  const [dx, dy] = DIRS[P.dir], nx = P.x + dx, ny = P.y + dy;
+  if (grid[ny] && grid[ny][nx] === "s") openPoster();
+  else if (grid[ny] && grid[ny][nx] === "k") openBooth(BOOTHS[nx]);
+  else if (grid[ny] && grid[ny][nx] === "S") openStation(STATION(nx));
+  else if (grid[ny] && grid[ny][nx] === "r") openStation("raffle");
+  else say(["여기엔 아무것도 없는 것 같다."]);
+}
+document.getElementById("abtn").addEventListener("click", interact);
+document.getElementById("listBtn").addEventListener("click", () => { if (!dlg.hidden) return; showPlace(["oak", "rocket", "hall"]); });
+const KEYS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", w: "up", s: "down", a: "left", d: "right" };
+document.addEventListener("keydown", e => {
+  if (!posterOv.hidden || !placeOv.hidden) { if (e.key === "Escape") { if (!posterOv.hidden) closePoster(); else document.getElementById("placeClose").click(); } return; }
+  if (KEYS[e.key]) { e.preventDefault(); if (!lock) { route = []; onArrive = null; held = KEYS[e.key]; } return; }
+  if (e.key === " " || e.key === "Enter" || e.key === "z") { if (e.target.tagName === "BUTTON" && e.target.id !== "abtn") return; e.preventDefault(); interact(); }
+});
+document.addEventListener("keyup", e => { if (KEYS[e.key] === held) held = null; });
+
+document.getElementById("sfxBtn").addEventListener("click", e => {
+  unlockAudio(); sfxOn = !sfxOn; const b = e.currentTarget;
+  b.textContent = sfxOn ? "효과음 끄기" : "효과음 켜기"; b.setAttribute("aria-pressed", sfxOn); sfx.open();
+});
+document.getElementById("bgmBtn").addEventListener("click", e => {
+  unlockAudio(); bgmOn = !bgmOn; const b = e.currentTarget;
+  b.textContent = bgmOn ? "배경음악 끄기" : "배경음악 켜기"; b.setAttribute("aria-pressed", bgmOn);
+  if (bgmOn) bgmPlay(scene); else bgmStop();
+});
+document.addEventListener("visibilitychange", () => { if (!AC) return; if (document.hidden) AC.suspend(); else AC.resume(); });
+// 기기가 소리를 멈춰 버렸으면(전화·알림 등) 다음 터치 때 다시 켜기
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => { if (AC && (sfxOn || bgmOn) && AC.state !== "running") AC.resume(); }, true));
+
+/* 시작 대사 */
+say(["학생회관 광장에 온 걸 환영하네!", "낮 11시부터 15시까지는 광장 왼쪽 부스에서 스탬프를 모으게.", "저녁에는 가운데 입구로 들어가 5층 대강당으로! 게시판의 배틀 포스터도 꼭 보게나."], () => { lock = false; });
+</script>
+</body>
+</html>
