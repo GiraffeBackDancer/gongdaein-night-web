@@ -396,12 +396,12 @@
 
                 <!-- 대화창 -->
                 <div class="dialog">
-                    <p id="line" aria-live="polite">공대인인가? 잘 왔네!</p>
-                    <span class="next" id="next"></span>
+                    <p id="line" aria-live="polite"></p>
+                    <span class="next" id="next" hidden></span>
                 </div>
 
                 <!-- YES / NO 선택창 -->
-                <div class="menu" id="menu" role="menu">
+                <div class="menu" id="menu" role="menu" hidden>
                     <button id="yes" role="menuitem" class="on">YES</button>
                     <button id="no" role="menuitem">NO</button>
                 </div>
@@ -493,6 +493,81 @@
             img.src = CHARACTER_IMG;
         }
         drawCharacter();
+
+        /* ===================== 대사 ===================== */
+        const INTRO = [
+            "공대인인가? 잘 왔네!",
+            "우리는 12월 3일, 함께 모험을 떠날 친구들을 모으고 있어.",
+            "이번 공대인의 밤에 함께 할텐가?"
+        ];
+        const TYPE_SPEED = 45;   // 글자 하나가 찍히는 간격(ms). 작을수록 빠름
+
+        const lineEl = $("line"), nextEl = $("next");
+        
+
+        let timer = null;      // 타이핑 타이머
+        let full = "";         // 지금 찍고 있는 대사 전체
+        let typing = false;    // 타이핑 중인지
+        let typeDone = null;   // 타이핑이 끝나면 실행할 함수
+        let pending = null;    // ▼ 상태에서 화면을 누르면 실행할 함수
+        let state = "talk";    // talk: 대사 중 / menu: 선택 중 / done: 끝
+
+        // 한 줄을 한 글자씩 찍기
+        function type(text, done) {
+            clearInterval(timer);
+            full = text; typeDone = done; typing = true; pending = null;
+            nextEl.hidden = true;
+            lineEl.textContent = "";
+
+
+            let i = 0;
+            timer = setInterval(() => {
+                lineEl.textContent = text.slice(0, ++i);
+                if (i >= text.length) finishType();
+            }, TYPE_SPEED);
+        }
+
+        // 타이핑 끝내기 (끝까지 찍었을 때 + 중간에 눌러서 건너뛸 때 둘 다 여기로)
+        function finishType() {
+            clearInterval(timer);
+            lineEl.textContent = full;
+            typing = false;
+            const d = typeDone; typeDone = null;
+            if (d) d();
+        }
+
+        // ▼를 띄우고, 누르면 fn 실행
+        function waitThen(fn) { nextEl.hidden = false; pending = fn; }
+
+        // 여러 줄을 차례로: 한 줄 끝 → ▼ → 누르면 다음 줄 → 마지막 줄이 끝나면 onEnd
+        function say(lines, onEnd) {
+            const [first, ...rest] = lines;
+            type(first, () => rest.length ? waitThen(() => say(rest, onEnd)) : onEnd());
+        }
+
+        // 화면을 눌렀을 때: 타이핑 중이면 한 번에 다 보여주고, ▼ 상태면 다음 줄로
+        function advance() {
+            if (state !== "talk") return;
+            if (typing) { finishType(); return; }
+            if (pending) { const p = pending; pending = null; p(); }
+        }
+
+        function runIntro() {
+            state = "talk";
+            say(INTRO, onIntroEnd);
+        }
+        function onIntroEnd() {
+            // 6단계에서 여기에 YES/NO 선택창을 띄움
+        }
+
+        /* ===================== 조작 ===================== */
+        $("screen").addEventListener("click", advance);
+        document.addEventListener("keydown", (e) => {
+            if (e.target.tagName === "BUTTON") return;   // 버튼에 포커스가 있으면 버튼 자체 동작에 맡김
+            if (e.key === " " || e.key === "Enter") { e.preventDefault(); advance(); }
+        });
+
+        runIntro();
     </script>
 </body>
 
