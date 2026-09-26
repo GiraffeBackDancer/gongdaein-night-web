@@ -26,11 +26,11 @@
             /* 화면 바깥 */
             --bezel: #262c3d;
             /* 게임기 테두리 */
-            --screen:  #ffffff;
+            --screen: #ffffff;
             /* 게임 화면 바탕 */
             --ink: #1b1d2a;
             /* 테두리·글씨 */
-            --box:  #ffffff;
+            --box: #ffffff;
             /* 대화창 */
             --accent: #e8483c;
             /* 커서·LED */
@@ -145,6 +145,11 @@
             image-rendering: pixelated;
             image-rendering: crisp-edges;
             /* 도트가 뭉개지지 않게 */
+        }
+
+        /* 박사 이미지 위치 미세 조정: 숫자가 클수록 아래로 내려감 */
+        #charImg {
+            transform: translateY(6%);
         }
 
         .floor {
@@ -419,7 +424,72 @@
             <button id="snd" aria-pressed="false">효과음 켜기</button>
         </div>
     </div>
+    <script>
+        /* ===================== 설정 ===================== */
+        const HOME_URL = "";        // YES 선택 시 이동할 홈페이지 주소 (비우면 임시 화면)
+        const CHARACTER_IMG = "images/character.png";;   // 캐릭터 이미지 경로 (예: "images/character.png"). 비우면 기본 도트 캐릭터
 
+        const $ = (id) => document.getElementById(id);
+
+        /* ===================== 캐릭터 ===================== */
+        // 기본 도트 캐릭터: 안전모·고글·작업복을 입은 공대 박사
+        // 글자 하나 = 픽셀 하나, 점(.)은 투명
+        const PAL = {
+            K: "#1b1d2a", Y: "#f4c430", y: "#c8961e", H: "#a7adb8", S: "#f2c29b", s: "#d49a74",
+            G: "#7fd6e8", g: "#ffffff", W: "#eef0f4", B: "#2f4d8f", b: "#20366a", O: "#ff7a2f",
+            P: "#3b3d4a", N: "#1b1d2a", M: "#b8c0cc", m: "#7c8494"
+        };
+
+        const MAP = [
+            ".......KKKKKKKK",
+            ".....KKYYYYYYYYKK",
+            "....KYYYYyYYYYYYyK",
+            "....KYYYYyYYYYYYyK",
+            "...KKKKKKKKKKKKKKKK",
+            "....KHSSSSSSSSSSHK",
+            "....KKKKKKSSKKKKKK",
+            "....KKGgGKSSKGgGKK",
+            "....KKGGGKSSKGGGKK",
+            "....KSKKKKssKKKKsK",
+            "....KSSSSSSSSSSSsK",
+            "....KSSSSKKKKSSSsK",
+            ".....KSSSSSSSSSsK",
+            "......KKSSSSSSKK",
+            ".....KKBBWWWWBBKK",
+            "....KBBBBBWWBBBBBK",
+            "...KBBBBBBWWBBBBBbK",
+            "...KBBBBBBBBBBBBBbK",
+            "...KOOOOOOOOOOOOOOK",
+            "...KBBBBBBBBBBBBBbK",
+            "...KSKBBBBBBBBBBKSK",
+            "...KKKBBBBBBBBBBKKK",
+            ".....KPPPPPPPPPPK",
+            ".....KPPPPKKPPPPK",
+            ".....KPPPPKKPPPPK",
+            ".....KPPPPKKPPPPK",
+            "....KNNNNNK.KNNNNNK",
+            "....KKKKKKK.KKKKKKK"
+        ];
+        // 오른손에 든 스패너 [x, y, 색]
+        const WRENCH = [[19, 14, "M"], [21, 14, "M"], [19, 15, "M"], [20, 15, "M"], [21, 15, "M"], [20, 16, "M"],
+        [20, 17, "m"], [20, 18, "m"], [20, 19, "M"], [20, 20, "M"]];
+
+        function drawCharacter() {
+            // 이미지 경로가 있으면 이미지를 보여주고 도트 캐릭터는 숨김
+            if (CHARACTER_IMG) {
+                $("charImg").src = CHARACTER_IMG;
+                $("charImg").hidden = false;
+                $("sprite").hidden = true;
+                return;
+            }
+            const ctx = $("sprite").getContext("2d");
+            MAP.forEach((row, y) => [...row].forEach((ch, x) => {
+                if (PAL[ch]) { ctx.fillStyle = PAL[ch]; ctx.fillRect(x, y, 1, 1); }
+            }));
+            WRENCH.forEach(([x, y, ch]) => { ctx.fillStyle = PAL[ch]; ctx.fillRect(x, y, 1, 1); });
+        }
+        drawCharacter();
+    </script>
 </body>
 
 </html>
