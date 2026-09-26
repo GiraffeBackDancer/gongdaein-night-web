@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>공대인의 밤</title>
+</head>
+<body>
+
+  <div class="console">
+    <!-- 게임기 테두리 -->
+    <div class="bezel">
+      <div class="bezel-top"><span class="led"></span>ENGINEERING NIGHT · 12.03</div>
+
+      <!-- 게임 화면: 누르면 대사 넘김 -->
+      <div class="screen" id="screen" tabindex="0" role="button" aria-label="대화 넘기기">
+
+        <!-- 캐릭터 영역 -->
+        <div class="stage">
+          <div class="floor"></div>
+          <img id="charImg" alt="박사" hidden>
+          <canvas id="sprite" width="22" height="30" aria-label="박사"></canvas>
+        </div>
+
+        <!-- 대화창 -->
+        <div class="dialog">
+          <p id="line" aria-live="polite">공대인인가? 잘 왔네!</p>
+          <span class="next" id="next"></span>
+        </div>
+
+        <!-- YES / NO 선택창 -->
+        <div class="menu" id="menu" role="menu">
+          <button id="yes" role="menuitem" class="on">YES</button>
+          <button id="no" role="menuitem">NO</button>
+        </div>
+
+        <!-- YES 선택 시 섬광 -->
+        <div class="flash" id="flash"></div>
+
+        <!-- 홈페이지 연결 전 임시 화면 -->
+        <div class="end" id="end" hidden>
+          <h1>모험을 시작하지!</h1>
+          <p>여기서 공대인의 밤 홈페이지로 이동합니다.<br>(홈페이지 연결 전 임시 화면)</p>
+          <button id="again">처음부터 다시 보기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 조작 안내 + 효과음 버튼 -->
+    <div class="pad">
+      <span>화면을 누르거나 SPACE · ↑↓ ENTER</span>
+      <button id="snd" aria-pressed="false">효과음 켜기</button>
+    </div>
+  </div>
+
+</body>
+</html>
