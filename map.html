@@ -92,6 +92,15 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ev button{margin-top:6px;font:inherit;font-size:12px;background:var(--accent);color:#fff;border:0;border-radius:3px;padding:6px 10px;cursor:pointer}
 .when{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;margin-bottom:6px}
 .when.day{background:#fff1c2;color:#8a5a00}.when.night{background:#1b2442;color:#f4c430}
+.choices{position:absolute;right:3%;bottom:calc(2.5% + 22% + 8px);display:flex;flex-direction:column;gap:4px;background:var(--box);border:3px solid var(--ink);border-radius:6px;padding:6px;z-index:3}
+.choices button{font:inherit;font-size:clamp(13px,3.6vw,15px);background:none;border:0;color:var(--ink);text-align:left;padding:4px 10px 4px 22px;cursor:pointer;position:relative}
+.choices button.on::before{content:"";position:absolute;left:6px;top:50%;margin-top:-5px;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:7px solid var(--accent)}
+.egg{text-align:center;max-width:340px}
+.egg canvas{width:128px;height:128px;image-rendering:pixelated;display:block;margin:6px auto 10px;animation:eggPop .5s ease-out}
+.egg h2{margin:0 0 8px;font-size:20px}.egg p{margin:0;font-size:13px;line-height:1.7;word-break:keep-all}
+.egg .cnt{margin-top:12px;font-size:11px;color:#6a7088}
+.egg .close{margin:14px auto 0}
+@keyframes eggPop{0%{transform:scale(.2) rotate(-30deg)}70%{transform:scale(1.15) rotate(6deg)}100%{transform:scale(1)}}
 .reward{display:grid;gap:8px;margin-top:12px}
 .reward div{display:flex;justify-content:space-between;align-items:center;gap:10px;border:2px solid var(--ink);border-radius:4px;padding:8px 10px;font-size:12px}
 .reward b{font-weight:700;white-space:nowrap}.reward span{text-align:right;color:#3a3f55}
@@ -129,6 +138,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       <div class="fade" id="fade"></div>
       <div class="area" id="area" aria-live="polite"></div>
       <div class="dialog" id="dialog" hidden><p id="line" aria-live="polite"></p><span class="next" id="next" hidden></span></div>
+      <div class="choices" id="choices" hidden><button type="button" data-v="1" class="on">예</button><button type="button" data-v="0">아니오</button></div>
     </div>
   </div>
   <div class="pad">
@@ -147,6 +157,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <div class="hint">가고 싶은 곳을 클릭하면 알아서 걸어가요 · 방향키 ←↑↓→ · Space로 조사</div>
 </div>
 
+<div class="overlay" id="eggOv" hidden><div class="card egg" role="dialog" aria-modal="true" aria-label="R 오브제 발견"><canvas id="eggCv" width="32" height="32"></canvas><h2 id="eggTitle">R 오브제 발견!</h2><p id="eggText"></p><button class="close" id="eggClose">닫기</button></div></div>
 <div class="overlay" id="placeOv" hidden><div class="card" id="placeCard" role="dialog" aria-modal="true"></div></div>
 <div class="overlay" id="posterOv" hidden>
   <div class="card poster" role="dialog" aria-modal="true" aria-label="포켓몬 배틀 결승 포스터">
@@ -173,46 +184,47 @@ const PLACES = {
   hall: {
     name: "학생회관 5층 · 대강당", main: true,
     talk: ["학생회관이라네. 5층 대강당으로 올라가 보지!", "공대인의 밤은 모두 이 대강당에서 열린다네. 순서를 보여주지!"],
-    sub: "저녁 · 대강당 · 시간은 추후 공개", badge: "저녁",
+    sub: "저녁 · 대강당 · 16:50 입장 · 17:20 시작", badge: "저녁",
     events: [
-      { t: "포켓몬 콘테스트", d: "베스트드레서를 뽑는 무대" },
-      { t: "체육관 도장깨기", d: "관장(집행부)과의 대결과 미니게임" },
-      { t: "포켓몬 배틀 결승", d: "예선을 통과한 트레이너의 결승 무대 · 포켓몬 챔피언스", hot: true, poster: true },
-      { t: "최종 경품 추첨", d: "오프닝에서 받은 응모 쪽지로 추첨" }
+      { t: "입장 · 포켓몬 카드 받기", d: "16:50–17:20 · 응모권(학생회비 납부자 2장 · 미납부자 1장)과 간식 · 승부 예측은 17:20 마감" },
+      { t: "포켓몬 콘테스트", d: "17:30 · 베스트 공대 드레서를 뽑는 무대" },
+      { t: "체육관 도장깨기", d: "18:15 · 관장(집행부)과 미니게임 4판 승부" },
+      { t: "포켓몬 배틀 결승", d: "20:10 · 예선을 통과한 트레이너의 결승 무대 · 포켓몬 챔피언스", hot: true, poster: true },
+      { t: "최종 경품 추첨", d: "21:00 · 포켓몬 카드 번호로 추첨" }
     ]
   },
-  gym:     { name: "체육관 도장깨기", badge: "저녁", sub: "대강당 무대 왼쪽 · 시간은 추후 공개",
-    talk: ["체육관 코너라네. 관장(집행부)이 도전자를 기다리고 있지!", "대결과 미니게임에서 이기면 배지를 얻을 수 있다네."],
-    events: [{ t: "관장과 대결", d: "관장(집행부)과 겨루는 무대" }, { t: "미니게임", d: "게임을 깨고 배지 획득" }] },
-  contest: { name: "포켓몬 콘테스트", badge: "저녁", sub: "대강당 무대 가운데 · 시간은 추후 공개",
+  gym:     { name: "체육관 도장깨기", badge: "저녁", sub: "대강당 무대 왼쪽 · 18:15–19:50",
+    talk: ["체육관 코너라네. 관장(집행부)이 도전자를 기다리고 있지!", "관장을 이기면 상품권과 배지! 배지를 가장 많이 모은 챔피언에게는 특별 상품도 있다네."],
+    events: [{ t: "미니게임 4판", d: "풍선 터트리기 · 단어 이어말하기 · 일심동체 · 손바닥 밀치기" }, { t: "관장 격파 보상", d: "신세계 상품권(1·2판 3만원, 3·4판 5만원) + 배지", hot: true }, { t: "배지 챔피언", d: "배지를 가장 많이 모으면 10만원 상당 상품 · 동점이면 MC와 가위바위보" }] },
+  contest: { name: "포켓몬 콘테스트", badge: "저녁", sub: "대강당 무대 가운데 · 17:30–18:10",
     talk: ["무대 위 런웨이라네. 여기서 포켓몬 콘테스트가 열리지!", "베스트드레서가 되고 싶다면 멋지게 차려입고 오게!"],
-    events: [{ t: "베스트드레서 뽑기", d: "포켓몬 컨셉 의상으로 런웨이에 도전" }] },
-  battle:  { name: "포켓몬 배틀 결승", badge: "저녁", sub: "대강당 무대 오른쪽 · 시간은 추후 공개",
+    events: [{ t: "베스트 공대 드레서", d: "포켓몬 컨셉 의상으로 도전 · 현장 10명 모집 · 카카오톡 실시간 투표" }, { t: "상품", d: "신세계 상품권 1등 20만원 · 2등 15만원 · 3등 10만원", hot: true }] },
+  battle:  { name: "포켓몬 배틀 결승", badge: "저녁", sub: "대강당 무대 오른쪽 · 20:10–21:00",
     talk: ["배틀 단상이다! 포켓몬 배틀 결승이 여기서 열린다네.", "예선을 뚫고 올라온 트레이너만 설 수 있지!", "입장할 때 승부 예측 뽑기 통에 이름을 넣어 두게. 맞히면 추첨으로 닌텐도 스위치 라이트를 준다네!"],
-    events: [{ t: "포켓몬 배틀 결승", d: "포켓몬 챔피언스 · 대형 스크린 중계", hot: true, poster: true }, { t: "승부 예측", d: "입장 마감(17:20)까지 뽑기 통에 이름 넣기 · 적중자 중 추첨으로 닌텐도 스위치 라이트" }] },
-  raffle:  { name: "최종 경품 추첨", badge: "저녁", sub: "대강당 · 마지막 순서",
+    events: [{ t: "포켓몬 배틀 결승", d: "포켓몬 챔피언스 · 대형 스크린 중계 · 우승 30만원 · 준우승 20만원(신세계 상품권)", hot: true, poster: true }, { t: "승부 예측", d: "입장 마감(17:20)까지 뽑기 통에 이름 넣기 · 적중자 중 추첨으로 닌텐도 스위치 라이트" }] },
+  raffle:  { name: "최종 경품 추첨", badge: "저녁", sub: "대강당 · 21:00–21:20 · 마지막 순서",
     talk: ["경품 추첨이다! 오늘 모은 포켓몬 카드... 경품이 될 것인가?", "마지막 순서, 최종 경품 추첨을 놓치지 말게!"],
-    events: [{ t: "포켓몬 카드 추첨", d: "낮 부스와 승부 예측에서 받은 포켓몬 카드(응모권)로 추첨 · 뽑힌 포켓몬 카드를 가진 사람이 당첨!" }] },
+    events: [{ t: "포켓몬 카드 번호 추첨", d: "입장 때와 스탬프 투어에서 받은 포켓몬 카드 번호로 추첨 · 카드를 꼭 가지고 있어요!" }, { t: "경품", d: "게이밍 노트북 · 아이패드 에어 · 플스5 · 게이밍 PC 등", hot: true }, { t: "자리를 지켜 주세요", d: "당첨자가 자리에 없으면 재추첨해요" }] },
   rocket: {
     name: "로켓단 부스", badge: "낮",
-    talk: ["훗, 로켓단 부스에 온 걸 환영한다!", "캠퍼스 곳곳에 'R' 오브제를 숨겨 두었지... 찾아오면 상품과 바꿔 주마!"],
+    talk: ["훗, 로켓단 부스에 온 걸 환영한다!", "학생회관 곳곳에 'R' 오브제 50개를 숨겨 두었지... 찾아오면 상품과 바꿔 주마!"],
     sub: "낮 부스 · 11:00–15:00 · 5층 대강당 앞",
     events: [
-      { t: "숨겨진 R 오브제 찾기", d: "캠퍼스 어딘가에 플라스틱 R 오브제가 숨겨져 있어요" },
+      { t: "숨겨진 R 오브제 찾기", d: "학생회관 어딘가에 R 오브제 50개가 숨겨져 있어요" },
       { t: "힌트는 당일 스토리로", d: "숨긴 장소 힌트를 행사 당일 인스타 스토리로 공개해요" },
-      { t: "부스에 가져오면 교환", d: "찾은 R 오브제를 로켓단 부스에서 상품으로 바꿔 줘요", hot: true }
+      { t: "부스에 가져오면 교환", d: "1등 에어팟 · 2등 애플워치 SE · 3등 한우세트 · 4등 쿠팡 2만원권 · 5등 5천원권 (꽝도 있어요!)", hot: true }
     ]
   },
   oak: {
     name: "오박사의 포켓몬 기본소양 부스", badge: "낮",
-    talk: ["오박사의 포켓몬 기본소양 부스라네!", "미니게임 3개 중 2개를 깨면 응모권, 3개를 모두 깨면 모자까지 주지!"],
+    talk: ["오박사의 포켓몬 기본소양 부스라네!", "스탬프 3개를 모두 모으면 응모권을 주고, 선착 50명에게는 지우 모자까지 주지!"],
     sub: "낮 부스 · 11:00–15:00 · 5층 대강당 앞 · 스탬프 모으기",
     events: [
       { t: "몬스터볼 던지기", d: "성공하면 스탬프 1개" },
-      { t: "포켓 룰렛", d: "같은 포켓몬 2칸 이상이면 스탬프 1개" },
-      { t: "포토부스 인증", d: "사진을 찍고 인증하면 스탬프 1개" }
+      { t: "포켓 룰렛", d: "같은 포켓몬 2칸 이상이면 스탬프 1개 · 메가 카드가 나오면 프리패스" },
+      { t: "포토존 · 포토부스", d: "11:00–18:00 · 사진을 찍으면 스탬프 1개" }
     ],
-    note: '<div class="reward"><div><b>스탬프 2개</b><span>포켓몬 카드(응모권) 1장</span></div><div class="gold"><b>스탬프 3개</b><span>지우 모자 (선착순 50명) + 포켓몬 카드(응모권) 1장</span></div></div>'
+    note: '<div class="reward"><div class="gold"><b>스탬프 3개</b><span>포켓몬 카드(응모권) 1장 + 지우 모자 (선착순 50명)</span></div></div>'
   },
   book:  { name: "서점",       talk: ["서점이다. 전공책이 빼곡하게 꽂혀 있다...", "시험 기간이 떠올라 얼른 나왔다."] },
   optic: { name: "안경점",     talk: ["안경점이다. 반짝이는 안경테가 진열되어 있다."] },
@@ -234,7 +246,8 @@ fill(1, 14, 13, 15, "q");
 fill(7, 16, 7, 20, "p");
 fill(1, 18, 4, 20, "t"); fill(10, 18, 13, 20, "t"); fill(1, 17, 2, 17, "t"); fill(12, 17, 13, 17, "t");
 fill(4, 16, 5, 17, "f"); fill(9, 16, 10, 17, "f");
-fill(5, 8, 6, 9, "x"); fill(8, 8, 9, 9, "x");   // 파라솔 테이블
+fill(5, 9, 5, 9, "x"); fill(9, 9, 9, 9, "x"); fill(5, 11, 5, 11, "x"); fill(9, 11, 9, 11, "x");   // 파란 차양 아래 피크닉 테이블
+grid[14][13] = "Z";                                // 광장 분리수거함
 [[1, 16], [13, 16]].forEach(([x, y]) => grid[y][x] = "o");
 const DOORS = [
   { id: "hall",  x: 7,  y: 4,  out: [0, 1] },
@@ -246,7 +259,7 @@ const DOORS = [
 DOORS.forEach(d => grid[d.y][d.x] = "d");
 const BOARD = [9, 13];
 grid[BOARD[1]][BOARD[0]] = "s";
-const walkable = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS && "gpfdqhela".includes(grid[y][x]);
+const walkable = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS && "gpfdqhela".includes(grid[y][x]) && !eggSpotAt(x, y);
 const doorAt = (x, y) => scene === "plaza" ? DOORS.find(d => d.x === x && d.y === y) : null;
 function doorForTap(x, y) {
   if (scene !== "plaza") return null;
@@ -373,6 +386,34 @@ function roof(c, X, Y, W, H) {                 // 눈 쌓인 옥상
   for (let yy = Y + 6; yy < Y + H - 3; yy += 8) for (let xx = X + 4; xx < X + W - 6; xx += 11) px(c, xx + (yy % 3), yy, 5, 1, C.snowD);
   px(c, X + 1, Y + H - 3, W - 2, 2, C.snowD);
 }
+function picnicTable(c, X, Y) {     // 나무 피크닉 테이블 (벤치 2개 + 상판)
+  px(c, X - 1, Y + 13, 18, 3, "rgba(60,30,30,.22)");
+  px(c, X - 1, Y + 1, 18, 3, "#7a5232"); px(c, X - 1, Y + 1, 18, 1, "#a87a4c");
+  px(c, X - 3, Y + 5, 22, 7, "#8a5e38"); px(c, X - 3, Y + 5, 22, 1, "#c0915e");
+  for (let i = 1; i < 4; i++) px(c, X - 3, Y + 5 + i * 2, 22, 1, "#6e4a2c");
+  px(c, X - 1, Y + 12, 18, 3, "#7a5232"); px(c, X - 1, Y + 12, 18, 1, "#a87a4c");
+  [[-1, 4], [14, 4]].forEach(([dx, dy]) => { px(c, X + dx, Y + dy, 2, 1, "#5a3a22"); px(c, X + dx, Y + 15, 2, 1, "#5a3a22"); });
+}
+function drawCanopyGround(c) {        // 차양 그림자 + 기둥 받침
+  px(c, 5 * T - 4, 9 * T - 4, 5 * T + 8, 3 * T + 8, "rgba(40,60,120,.07)");
+  [[5 * T - 4, 9 * T - 3], [10 * T + 2, 9 * T - 3], [5 * T - 4, 12 * T + 3], [10 * T + 2, 12 * T + 3]].forEach(([x, y]) => { px(c, x, y, 3, 3, "#e8e2d0"); px(c, x, y + 2, 3, 1, "#b8b0a0"); });
+}
+function drawCanopyRoof(c) {          // 파란 차양 (캐릭터 위로 지나감)
+  const X0 = 5 * T - 5, Y0 = 8 * T - 2, W = 5 * T + 10, H = 4 * T + 4;
+  c.save(); c.globalAlpha = .3; px(c, X0, Y0, W, H + 4, "#2a5cb0");
+  c.globalAlpha = .92;
+  px(c, X0, Y0, W, 3, "#2456a8"); px(c, X0, Y0 + 3, W, 1, "#f0e4b0");
+  px(c, X0, Y0 + H, W, 3, "#2456a8"); px(c, X0, Y0 + H + 3, W, 1, "#f0e4b0");
+  px(c, X0, Y0, 3, H + 4, "#2456a8"); px(c, X0 + W - 3, Y0, 3, H + 4, "#2456a8");
+  [1, 2].forEach(k => { const y = Y0 + Math.round(H * k / 3); px(c, X0, y, W, 2, "#3a6ec0"); px(c, X0, y + 2, W, 1, "#e8dca8"); });
+  px(c, X0 + Math.round(W / 2) - 1, Y0, 2, H + 4, "#3a6ec0");
+  c.restore();
+}
+function plazaBin(c, X, Y) {          // 광장 분리수거함
+  px(c, X + 2, Y + 13, 12, 3, "rgba(60,30,30,.22)");
+  px(c, X + 3, Y + 1, 10, 13, "#9aa2ae"); px(c, X + 4, Y + 2, 8, 11, "#e8ecf0"); px(c, X + 4, Y + 2, 8, 2, "#c8ced8");
+  px(c, X + 5, Y + 5, 6, 2, "#3868b8"); px(c, X + 5, Y + 9, 6, 3, "#f4f6fb"); px(c, X + 6, Y + 10, 4, 1, "#e8483c");
+}
 function drawStudentUnion(c) {
   const t = T;
   // 지붕: ㄷ자
@@ -431,7 +472,9 @@ for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
 }
 drawStudentUnion(b2);
 DOORS.forEach(d => doorSprite(b2, d));
-parasol(b2, 5 * T, 8 * T); parasol(b2, 8 * T, 8 * T);
+// drawCanopyGround(b2);  // 차양 제거
+[[5, 9], [9, 9], [5, 11], [9, 11]].forEach(([x, y]) => picnicTable(b2, x * T, y * T));
+plazaBin(b2, 13 * T, 14 * T);
 
 for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
   const v = grid[y][x], X = x * T, Y = y * T;
@@ -527,6 +570,110 @@ const hallBase = document.createElement("canvas"); hallBase.width = cv.width; ha
   px(c, RX + 2, RY - 2, 12, 11, "#403848"); px(c, RX + 3, RY - 1, 10, 9, "#f4c430"); px(c, RX + 3, RY - 1, 10, 2, "#f8e070");
   px(c, RX + 5, RY + 1, 6, 2, "#403848"); px(c, RX + 5, RY + 4, 2, 2, "#e84048"); px(c, RX + 9, RY + 4, 2, 2, "#4878d8");
 })(hallBase.getContext("2d"));
+
+/* ===== 학생회관 1층 로비 ===== */
+/* 위: 문 · 안내 거치대 · 엘리베이터 · 안내판 · 계단 · 정수기 · 쓰레기통 / 왼쪽: 라운지 소파 · 홍보 배너 · 우체통 / 오른쪽: 원형 테이블 라운지 · 창가 벤치 / 아래: 광장 출입문 */
+const GG = Array.from({ length: ROWS }, () => Array(COLS).fill("W"));
+const gfill = (x0, y0, x1, y1, v) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) GG[y][x] = v; };
+gfill(1, 4, 13, 19, "l");
+GG[3][7] = "e"; GG[3][8] = "e";                                  // 엘리베이터
+gfill(6, 20, 8, 20, "d");                                       // 광장으로 나가는 유리문
+gfill(1, 5, 2, 14, "X"); GG[9][2] = "l"; GG[10][2] = "l";         // 왼쪽 라운지 (가운데 통로)
+GG[5][3] = "X"; GG[14][3] = "X";                                 // 기둥
+gfill(4, 6, 4, 9, "X"); GG[11][4] = "X"; GG[13][4] = "X";         // 배너 · 우체통 · 이동식 테이블
+GG[4][11] = "X"; GG[4][12] = "X"; GG[4][13] = "X";               // 정수기 2 · 쓰레기통
+GG[6][10] = "X";                                                 // 기둥
+gfill(13, 7, 13, 13, "X");                                       // 창가 벤치
+[[11, 8], [11, 11], [11, 14]].forEach(([x, y]) => GG[y][x] = "X"); // 원형 테이블
+GG[15][13] = "X"; GG[16][13] = "X"; GG[17][13] = "X";               // 프린터 3대 (세로, 오른쪽 벽)
+gfill(1, 15, 3, 16, "X"); gfill(1, 17, 4, 18, "X");             // 왼쪽 아래: 소파 2줄 + 4x2 테이블
+const groundBase = document.createElement("canvas"); groundBase.width = cv.width; groundBase.height = cv.height;
+(function drawGround(c) {
+  const t = T;
+  px(c, 0, 0, cv.width, cv.height, "#cfc6b6");
+  // 바닥 타일 (큰 타일 · 윤기)
+  for (let y = 4; y <= 19; y++) for (let x = 1; x <= 13; x++) {
+    const X = x * t, Y = y * t;
+    px(c, X, Y, t, t, (x + y) % 2 ? "#d9cfbf" : "#d2c7b6"); px(c, X, Y, t, 1, "#beb3a1"); px(c, X, Y, 1, t, "#beb3a1");
+    if (rnd(x, y, 3) % 4 === 0) px(c, X + 4, Y + 5, 6, 1, "#ebe3d6");
+  }
+  for (let y = 11; y <= 19; y++) px(c, 6 * t + 6, y * t + 4, 2 * t, 3, "rgba(255,250,235,.35)");   // 바닥 빛 반사
+  // 천장 (격자) + 뒷벽
+  px(c, 0, 0, cv.width, 2 * t, "#a49c8e"); for (let x = 0; x < cv.width; x += 4) px(c, x, 0, 1, 2 * t, "#8e8678"); for (let y = 0; y < 2 * t; y += 4) px(c, 0, y, cv.width, 1, "#8e8678");
+  [[3, .6], [7, .8], [11, .6], [5, 1.4], [9, 1.4]].forEach(([x, y]) => { px(c, x * t, y * t, 4, 2, "#fff8e0"); });
+  px(c, 0, 2 * t, cv.width, 2 * t, "#e6dfd2"); px(c, 0, 2 * t, cv.width, 2, "#c8c0b0"); px(c, 0, 4 * t - 3, cv.width, 3, "#bfb6a6");
+  // 문
+  px(c, 3 * t + 2, 2 * t + 3, 12, 25, "#b8b0a2"); px(c, 3 * t + 3, 2 * t + 4, 10, 24, "#f2efe8"); px(c, 3 * t + 10, 3 * t + 2, 2, 2, "#8a8274"); px(c, 3 * t + 2, 2 * t, 9, 3, "#f08a8a");
+  // 안내 책자 거치대
+  px(c, 5 * t + 3, 3 * t - 2, 10, 15, "#3a3a40"); for (let i = 0; i < 3; i++) { px(c, 5 * t + 4, 3 * t + i * 4, 8, 3, ["#f4f6fb", "#e8c060", "#78b0d8"][i]); }
+  // 엘리베이터
+  px(c, 7 * t - 2, 2 * t + 2, 2 * t + 4, 2 * t - 2, "#7c8088"); px(c, 7 * t, 2 * t + 5, 2 * t, 2 * t - 5, "#b4b8c0");
+  px(c, 8 * t - 1, 2 * t + 5, 2, 2 * t - 5, "#8a8e96"); px(c, 7 * t + 2, 2 * t + 6, 3, 2 * t - 8, "#d0d4dc");
+  px(c, 7 * t + 12, 2 * t + 1, 8, 4, "#202024");
+  // 안내판 · 계단 출입구
+  px(c, 9 * t + 3, 2 * t + 3, 10, 18, "#f8f8f8"); px(c, 9 * t + 3, 2 * t + 3, 10, 3, "#3a3a40"); for (let i = 0; i < 5; i++) px(c, 9 * t + 5, 2 * t + 8 + i * 3, 6, 1, "#7a7a80");
+  px(c, 10 * t + 2, 2 * t + 2, 2 * t - 6, 2 * t - 2, "#18181c"); px(c, 10 * t + 2, 2 * t + 2, 2 * t - 6, 2, "#38383e"); px(c, 11 * t + 2, 2 * t - 1, 6, 3, "#48c878");
+  // 정수기 2대 · 쓰레기통
+  [11, 12].forEach(x => { const X = x * t; px(c, X + 2, 4 * t + 12, 12, 3, "rgba(60,40,40,.18)"); px(c, X + 3, 3 * t + 4, 10, 24, "#c8ccd4"); px(c, X + 4, 3 * t + 5, 8, 22, "#f4f6f8"); px(c, X + 5, 3 * t + 9, 6, 4, "#5a6a80"); px(c, X + 6, 3 * t + 15, 2, 2, "#48a0e8"); px(c, X + 9, 3 * t + 15, 2, 2, "#e84048"); });
+  px(c, 13 * t + 4, 4 * t + 1, 8, 13, "#4a4a50"); px(c, 13 * t + 3, 4 * t, 10, 3, "#f0c830");
+  // 왼쪽 라운지: 소파 + 흰 의자
+  px(c, 1 * t, 4 * t, 2 * t, 11 * t, "#c9c4bb");
+  [[5, 8], [11, 14]].forEach(([y0, y1]) => { px(c, 1 * t + 1, y0 * t + 1, 2 * t - 2, (y1 - y0 + 1) * t - 2, "#9aa2ae"); px(c, 1 * t + 3, y0 * t + 3, 2 * t - 6, (y1 - y0 + 1) * t - 6, "#c4cad4"); for (let y = y0; y < y1; y++) px(c, 1 * t + 3, y * t + 15, 2 * t - 6, 1, "#aab0bc"); });
+  [[1, 6.4], [1.7, 12.3]].forEach(([x, y]) => { oval(c, x * t + 8, y * t + 6, 7, 5, "#f6f6f2"); oval(c, x * t + 8, y * t + 5, 5, 3, "#ffffff"); });
+  // 기둥
+  [[3, 5], [3, 14], [10, 6]].forEach(([x, y]) => { px(c, x * t + 1, y * t - 6, 14, 22, "#d8ccb8"); px(c, x * t + 1, y * t - 6, 3, 22, "#e8dcc8"); px(c, x * t + 1, y * t + 14, 14, 2, "#b8ac98"); });
+  // 홍보 배너 (입간판)
+  [["#e8604c", "#f8e0d8"], ["#f6f2e4", "#58a050"], ["#f4eedc", "#e8a040"], ["#f8f8f8", "#4878c8"]].forEach(([bg, fg], i) => {
+    const X = 4 * t + 2, Y = (6 + i) * t - 6;
+    px(c, X + 1, Y + 20, 12, 2, "rgba(60,40,40,.2)"); px(c, X, Y, 12, 21, "#6a6a70"); px(c, X + 1, Y + 1, 10, 19, bg);
+    px(c, X + 2, Y + 4, 8, 2, fg); px(c, X + 2, Y + 8, 6, 1, fg); px(c, X + 2, Y + 11, 7, 1, fg); px(c, X + 3, Y + 15, 4, 3, "#303038");
+  });
+  // 빨간 우체통 · 이동식 흰 테이블
+  px(c, 4 * t + 3, 11 * t - 6, 10, 21, "#a81c24"); px(c, 4 * t + 4, 11 * t - 5, 8, 19, "#d8303a"); px(c, 4 * t + 5, 11 * t - 2, 6, 1, "#601014"); px(c, 4 * t + 5, 11 * t + 6, 6, 3, "#f4f0e8");
+  px(c, 4 * t - 4, 13 * t + 2, 20, 6, "#f4f4f0"); px(c, 4 * t - 4, 13 * t + 2, 20, 1, "#ffffff"); px(c, 4 * t - 3, 13 * t + 8, 1, 7, "#b8b8c0"); px(c, 4 * t + 14, 13 * t + 8, 1, 7, "#b8b8c0");
+  px(c, 4 * t - 2, 13 * t + 3, 6, 3, "#3a3a40");
+  // 오른쪽 라운지: 원형 테이블 + 흰 의자, 창가 벤치
+  px(c, 14 * t, 4 * t, t, 16 * t, "#d8d0c2"); for (let y = 6; y <= 12; y += 2) { px(c, 14 * t + 2, y * t, 10, 14, "#a8c8d8"); px(c, 14 * t + 3, y * t + 1, 4, 12, "#d0e8f0"); }
+  px(c, 13 * t + 1, 7 * t, 14, 7 * t, "#8aa4ac"); px(c, 13 * t + 3, 7 * t + 2, 10, 7 * t - 4, "#a8c0c8"); for (let y = 8; y < 14; y++) px(c, 13 * t + 3, y * t, 10, 1, "#90aab2");
+  [[11, 8], [11, 11], [11, 14]].forEach(([x, y]) => {
+    const X = x * t, Y = y * t;
+    [[-9, 0], [9, 0], [0, -9], [0, 9]].forEach(([dx, dy]) => { oval(c, X + 8 + dx, Y + 8 + dy + 1, 5, 4, "#c8c8c4"); oval(c, X + 8 + dx, Y + 8 + dy, 5, 4, "#f8f8f4"); });
+    oval(c, X + 8, Y + 9, 7, 5, "rgba(60,40,40,.2)"); oval(c, X + 8, Y + 8, 7, 5, "#b88858"); oval(c, X + 8, Y + 7, 6, 4, "#d0a070");
+  });
+  // 프린터 3대 (오른쪽 라운지 아래)
+  [15, 16, 17].forEach(y => { const X = 13 * t, Y = y * t;   // 벽에 붙어 왼쪽(통로)을 바라봄
+    px(c, X - 1, Y + 1, 3, 14, "rgba(60,40,40,.18)"); px(c, X + 1, Y, 14, 15, "#6a6e78"); px(c, X + 2, Y + 1, 12, 13, "#d4d7de");
+    px(c, X + 10, Y + 1, 4, 13, "#eef0f4"); px(c, X + 4, Y + 3, 2, 10, "#3a3e48"); px(c, X + 1, Y + 4, 3, 8, "#ffffff");
+    px(c, X + 11, Y + 2, 2, 1, "#48c878"); px(c, X + 11, Y + 5, 2, 3, "#5a8ac8"); px(c, X + 1, Y + 14, 14, 1, "#4a4e58");
+  });
+  // 왼쪽 아래 라운지: 소파 / 소파 / 4x2 테이블 (위에서 아래로)
+  const sofa = (X, Y, backTop) => { const W = 3 * t;
+    px(c, X, Y + 13, W, 3, "rgba(60,40,40,.2)");
+    px(c, X + 1, Y + 2, W - 2, 12, "#5a6478"); px(c, X + 2, Y + 3, W - 4, 10, "#8a96ac");
+    const by = backTop ? Y + 2 : Y + 9; px(c, X + 2, by, W - 4, 4, "#6c788e"); px(c, X + 2, by + (backTop ? 0 : 3), W - 4, 1, "#a8b2c4");
+    px(c, X + 1, Y + 3, 3, 10, "#6c788e"); px(c, X + W - 4, Y + 3, 3, 10, "#6c788e");
+    for (let i = 1; i < 3; i++) px(c, X + i * t, Y + (backTop ? 6 : 3), 1, 6, "#76829a");
+  };
+  sofa(1 * t, 15 * t, true); sofa(1 * t, 16 * t, true);
+  { const X = 1 * t, Y = 17 * t, W = 4 * t, H = 2 * t;          // 흰 테이블 + 의자 (4x2 칸)
+    const chair = (cx, cy, back) => {          // back: 등받이 방향 u/d/l/r
+      px(c, cx, cy + 7, 10, 2, "rgba(60,40,40,.18)");
+      px(c, cx, cy, 10, 8, "#9aa0aa"); px(c, cx + 1, cy + 1, 8, 6, "#f4f4f2");
+      if (back === "u") px(c, cx, cy, 10, 3, "#c8ccd2");
+      if (back === "d") px(c, cx, cy + 5, 10, 3, "#c8ccd2");
+      if (back === "l") px(c, cx, cy, 3, 8, "#c8ccd2");
+      if (back === "r") px(c, cx + 7, cy, 3, 8, "#c8ccd2");
+    };
+    [8, 27, 46].forEach(dx => { chair(X + dx, Y + 1, "u"); chair(X + dx, Y + H - 9, "d"); });
+    chair(X, Y + 12, "l"); chair(X + W - 10, Y + 12, "r");
+    px(c, X + 10, Y + 22, W - 18, 2, "rgba(60,40,40,.2)");
+    px(c, X + 8, Y + 8, W - 18, 15, "#a8aeb8"); px(c, X + 9, Y + 9, W - 20, 13, "#ffffff"); px(c, X + 9, Y + 9, W - 20, 2, "#f0f2f6");
+    px(c, X + 9, Y + 20, W - 20, 1, "#dfe2e8"); }
+  // 아래 벽 + 광장 유리문
+  px(c, 0, 20 * t, cv.width, t, "#bfb6a6"); px(c, 0, 20 * t, cv.width, 2, "#a89e8e");
+  px(c, 6 * t, 20 * t + 1, 3 * t, t - 1, "#6a7a88"); for (let i = 0; i < 3; i++) px(c, 6 * t + 2 + i * t, 20 * t + 3, t - 4, t - 4, "#a8d0e8");
+  px(c, 0, 4 * t, t, 16 * t, "#d8d0c2");
+})(groundBase.getContext("2d"));
 
 /* ===== 5층 로비 (대강당 앞 · 낮 부스) ===== */
 /* 좁은 복도. 위쪽(대강당 벽): 문 · 오박사 부스 · 몬스터볼 · 로켓단 부스 / 아래쪽: 포토부스(몬스터볼 · 로켓단 맞은편)
@@ -650,6 +797,8 @@ const SCENES = {
     addTag("서점", 2.5, 7.5); addTag("안경점", 2.5, 11.5); addTag("그라찌에", 12.5, 5.5); addTag("CU", 12.5, 7.6);
     addTag("배틀 포스터", 11.4, 14.6);
   } },
+  ground: { grid: GG, base: groundBase, tags: () => {
+  } },
   lobby: { grid: LG, base: lobbyBase, tags: () => {
     addTag("5F 대강당 앞", 7.5, 5.8, true);
     addTag("대강당", 3, 7.7, false, "day");
@@ -677,7 +826,7 @@ function iris(open, ms, done) {
     if (k < 1) requestAnimationFrame(f); else { if (open) fadeEl.style.opacity = 0; if (done) done(); }
   })(t0);
 }
-const AREA_NAMES = { plaza: "학생회관 광장", lobby: "5F 대강당 앞", hall: "5F 대강당" };
+const AREA_NAMES = { plaza: "학생회관 광장", ground: "학생회관 1층", lobby: "5F 대강당 앞", hall: "5F 대강당" };
 const areaEl = document.getElementById("area"); let areaTimer = null;
 function showArea(name) { areaEl.textContent = AREA_NAMES[name]; areaEl.classList.remove("show"); void areaEl.offsetWidth; areaEl.classList.add("show"); clearTimeout(areaTimer); areaTimer = setTimeout(() => areaEl.classList.remove("show"), 2000); }
 let walkIn = 0;   // 문 안으로 걸어 들어가는 정도 (0~1)
@@ -690,7 +839,7 @@ function goScene(name, x, y, dir, then) {
     scene = name; grid = SCENES[name].grid; curBase = SCENES[name].base;
     tags.innerHTML = ""; SCENES[name].tags(); if (bgmOn) bgmPlay(name);
     P.x = x; P.y = y; P.from = [x, y]; P.t = 1; P.dir = dir;
-    iris(true, 420, () => { showArea(name); if (then) then(); else lock = false; });
+    iris(true, 420, () => { if (name !== "ground") showArea(name); if (then) then(); else lock = false; });
   });
 }
 let hallVisited = false, lobbyVisited = false;
@@ -738,6 +887,7 @@ const SONGS = {
 const NOTE = n => { const m = /^([A-G])(#?)(\d)$/.exec(n); const k = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] ? 1 : 0); return 440 * Math.pow(2, (k + (+m[3] + 1) * 12 - 69) / 12); };
 function parse(str) { const tk = str.trim().split(/\s+/), out = []; tk.forEach((x, i) => { if (x === "-" || x === ".") return; let len = 1; while (tk[i + len] === "-") len++; out.push({ at: i, len, f: NOTE(x) }); }); return { notes: out, steps: tk.length }; }
 Object.values(SONGS).forEach(s => { s.L = parse(s.lead); s.B = parse(s.bass); });
+SONGS.ground = SONGS.plaza;   // 1층 로비는 광장 노래 그대로
 let bgmTimer = null, bgmSong = null, bgmStart = 0, bgmNextStep = 0;
 function bgmPlay(name) {
   if (!bgmOn || !AC) return;
@@ -762,10 +912,10 @@ function bgmStop() { clearInterval(bgmTimer); bgmTimer = null; }
 const coat = (hat, hatD, body, bodyD, scarf, hair = "#403028") => ({ ...HP, Y: hat, y: hatD, W: hat, B: body, b: bodyD, O: scarf, H: hair });
 const NPCS = {
   plaza: [
-    { x: 6, y: 11, pal: coat("#e84048", "#b83038", "#f0f0f4", "#c8c8d8", "#e84048"), lines: ["도장깨기 관장들 엄청 세대!", "미니게임 연습 좀 해 둘 걸 그랬나..."] },
+    { x: 6, y: 11, pal: coat("#e84048", "#b83038", "#f0f0f4", "#c8c8d8", "#e84048"), lines: ["도장깨기 관장들 엄청 세대!", "이기면 상품권에 배지까지 준대. 배지 제일 많이 모으면 챔피언이래!"] },
     { x: 8, y: 7,  pal: coat("#48a060", "#307848", "#7a5a9a", "#5a4078", "#f4c430", "#6a4028"), lines: ["5층에서 스탬프 3개를 다 모으면 지우 모자를 준대!", "선착순 50명이래. 일찍 가야지!"] },
     { x: 4, y: 14, pal: coat("#a8b0c0", "#8890a0", "#e89048", "#c07030", "#3868b8"), lines: ["로켓단이 캠퍼스 어딘가에 R을 숨겼대...", "당일 인스타 스토리에 힌트가 뜬다던데!"] },
-    { x: 11, y: 15, pal: coat("#f4c430", "#c89820", "#3a4a6a", "#2a3450", "#e84048", "#302020"), lines: ["배틀 결승 승부 예측을 맞히면 포켓몬 카드를 준대!", "그 카드로 마지막에 경품 추첨을 한다고?!"] }
+    { x: 11, y: 15, pal: coat("#f4c430", "#c89820", "#3a4a6a", "#2a3450", "#e84048", "#302020"), lines: ["배틀 결승 승부 예측 맞히면 닌텐도 스위치 라이트래!", "입장할 때 뽑기 통에 이름 넣는 거 잊지 말자!"] },
   ],
   lobby: [
     { x: 13, y: 14, dir: "left", still: true, pal: coat("#303038", "#202028", "#303038", "#202028", "#e84048", "#202020"), lines: ["포토부스에서 사진 찍고 인증하면 스탬프 1개래!", "그라찌에에서 따뜻한 거 사 올걸... 밖에 너무 추워."] }
@@ -774,7 +924,7 @@ const NPCS = {
 };
 Object.values(NPCS).flat().forEach(n => { n.from = [n.x, n.y]; n.t = 1; n.dir = n.dir || "down"; n.next = 0; n.steps = 0; });
 const npcAt = (x, y) => (NPCS[scene] || []).find(n => n.x === x && n.y === y);
-function npcFree(x, y) { return "qp".includes(grid[y] && grid[y][x]) && !npcAt(x, y) && !(P.x === x && P.y === y) && y >= 5; }
+function npcFree(x, y) { return "qp".includes(grid[y] && grid[y][x]) && !eggSpotAt(x, y) && !npcAt(x, y) && !(P.x === x && P.y === y) && y >= 5; }
 function updateNpcs(now, dt) {
   (NPCS[scene] || []).forEach(n => {
     if (n.t < 1) { n.t = Math.min(1, n.t + dt / 300); if (n.t >= 1) n.steps++; return; }
@@ -787,6 +937,7 @@ function updateNpcs(now, dt) {
 function talkNpc(n) {
   const face = { up: "down", down: "up", left: "right", right: "left" };
   n.dir = face[P.dir]; n.next = performance.now() + 3000; route = []; held = null;
+  if (n.quiz) return rocketQuiz();
   say(n.lines);
 }
 function tapNpc(n) {
@@ -826,6 +977,8 @@ function arrived() {
   if (scene === "hall" && grid[P.y][P.x] === "e") { route = []; held = null; onArrive = null; return leaveHall(); }
   if (scene === "lobby" && grid[P.y][P.x] === "a") { route = []; held = null; onArrive = null; return enterHall(); }
   if (scene === "lobby" && grid[P.y][P.x] === "e") { route = []; held = null; onArrive = null; return leaveBuilding(); }
+  if (scene === "ground" && grid[P.y][P.x] === "e") { route = []; held = null; onArrive = null; return upToLobby(); }
+  if (scene === "ground" && grid[P.y][P.x] === "d") { route = []; held = null; onArrive = null; return goScene("plaza", 7, 5, "down"); }
   if (onArrive && !route.length) { const f = onArrive; onArrive = null; f(); }
 }
 function bfs(tx, ty) {
@@ -846,6 +999,7 @@ function goTo(tx, ty, then) {
 function tapAt(tx, ty) {
   if (lock) return;
   const tn = npcAt(tx, ty); if (tn) return tapNpc(tn);
+  const es = eggSpotAt(tx, ty); if (es) return approach(tx, ty, () => eggTalk(es.id));
   const dr = doorForTap(tx, ty);
   if (dr) return goTo(dr.x, dr.y);
   if (scene === "hall") {
@@ -868,12 +1022,25 @@ function tapAt(tx, ty) {
     if (walkable(tx, ty)) goTo(tx, ty);
     return;
   }
+  if (scene === "ground") {
+    const v = grid[ty][tx];
+    if (ty <= 3 && (tx === 7 || tx === 8)) return goTo(tx, 3);
+    if (ty >= 19 && tx >= 6 && tx <= 8) return goTo(tx, 20);
+    if (walkable(tx, ty)) goTo(tx, ty);
+    return;
+  }
+  if (grid[ty][tx] === "x") return approach(tx, ty, () => openSpot("table"));
+  if (grid[ty][tx] === "Z") return approach(tx, ty, () => openSpot("pbin"));
   if (grid[ty][tx] === "s") { const [bx, by] = BOARD; return goTo(bx, by + 1, () => { P.dir = "up"; openPoster(); }); }
   if (walkable(tx, ty)) goTo(tx, ty);
 }
 cv.addEventListener("click", e => {
   if (!dlg.hidden) return advance();
   const r = cv.getBoundingClientRect();
+  if (R_EVENT_ON && !lock && scene === "plaza") {
+    const cx = (e.clientX - r.left) / r.width * cv.width, cy = (e.clientY - r.top) / r.height * cv.height, by = 3 * T - 7;
+    if (cx >= 8 * T + 4 && cx <= 8 * T + 32 && cy >= by - 4 && cy <= by + 26) return logoEgg();
+  }
   tapAt(Math.floor((e.clientX - r.left) / r.width * COLS), Math.floor((e.clientY - r.top) / r.height * ROWS));
 });
 
@@ -896,6 +1063,8 @@ function sceneFx(c, now) {
     [0, 4, 8].forEach((dx, i) => { c.fillStyle = cols[(k + i * 2) % 4]; c.fillRect(4 * T + 7 + dx, 13 * T + 5, 3, 3); });
     // 엘리베이터 층 표시등 깜빡임
     c.fillStyle = Math.floor(now / 600) % 2 ? "#f8e070" : "#806830"; c.fillRect(6 * T + 9, 17 * T + 5, 3, 2);
+  } else if (scene === "ground") {
+    c.fillStyle = Math.floor(now / 600) % 2 ? "#ff6040" : "#802818"; c.fillRect(7 * T + 13, 2 * T + 2, 6, 2);   // 엘리베이터 층 표시
   } else if (scene === "hall") {
     // 무대 위를 오가는 스포트라이트
     c.save(); c.globalCompositeOperation = "lighter";
@@ -961,6 +1130,7 @@ function loop(now) {
   const fx = P.from[0] + (P.x - P.from[0]) * P.t, fy = P.from[1] + (P.y - P.from[1]) * P.t;
   updateNpcs(now, dt);
   ctx.drawImage(curBase, 0, 0);
+  if (R_EVENT_ON) drawVisibleEggs(ctx);
   if (scene === "plaza") bubble(ctx, now);
   const [wdx, wdy] = DIRS[P.dir], wi = walkIn * 10;
   const actors = (NPCS[scene] || []).map(n => ({ y: n.from[1] + (n.y - n.from[1]) * n.t, draw: () => {
@@ -968,6 +1138,7 @@ function loop(now) {
     hero(ctx, Math.round(nx * T), Math.round(ny * T) - 4, n.dir, n.t < 1 ? 1 + (n.steps % 2) : 0, n.pal); } }));
   actors.push({ y: fy, draw: () => hero(ctx, Math.round(fx * T + wdx * wi), Math.round(fy * T) - 4 + Math.round(wdy * wi), P.dir, (P.t < 1 || walkIn) ? 1 + ((stepCount + Math.floor(walkIn * 3)) % 2) : 0) });
   actors.sort((a, b) => a.y - b.y).forEach(a => a.draw());
+  // 차양 제거
   sceneFx(ctx, now);
   if (scene === "plaza") drawAmbience(ctx, now, Math.min(dt, 50));
   requestAnimationFrame(loop);
@@ -984,7 +1155,7 @@ function showNext() {
 }
 function done() { clearInterval(timer); lineEl.textContent = full; typing = false; nextEl.hidden = false; }
 function advance() {
-  if (dlg.hidden) return;
+  if (dlg.hidden || choosing) return;
   if (typing) return done();
   if (lines.length) { sfx.next(); return showNext(); }
   dlg.hidden = true; const f = after; after = null; if (f) f(); else lock = false;
@@ -995,11 +1166,7 @@ dlg.addEventListener("click", e => { e.stopPropagation(); advance(); });
 const placeOv = document.getElementById("placeOv"), placeCard = document.getElementById("placeCard");
 function stepOut(d) { P.from = [d.x, d.y]; P.x = d.x + d.out[0]; P.y = d.y + d.out[1]; P.t = 0; P.dir = d.out[0] > 0 ? "right" : d.out[0] < 0 ? "left" : "down"; }
 function enter(d) {
-  if (d.id === "hall") return say(["학생회관이라네. 엘리베이터를 타고 5층으로 올라가 보지!"], () => goScene("lobby", 5, 16, "up", () => {
-    if (lobbyVisited) { lock = false; return; }
-    lobbyVisited = true;
-    say(["여기는 5층 대강당 앞 로비라네! 낮 11시부터 15시까지 부스가 열리지.", "바로 앞이 오박사 부스, 그 오른쪽이 로켓단 부스! 스탬프를 모아 보게.", "저녁 행사는 오박사 부스 바로 옆 문으로 들어가면 대강당이라네!"]);
-  }));
+  if (d.id === "hall") return say(["학생회관이라네. 1층 로비로 들어가 보지!"], () => goScene("ground", 7, 19, "up"));
   const pl = PLACES[d.id];
   say(pl.talk, () => {
     if (!pl.events) { stepOut(d); lock = false; return; }
@@ -1029,15 +1196,97 @@ function enterHall() {
     say(["여기가 5층 대강당! 공대인의 밤 저녁 무대라네.", "행사는 도장깨기, 포켓몬 콘테스트, 포켓몬 배틀 결승이지.", "경품 추첨도 있으니 둘러보게. 나갈 땐 아래 출구로!"]);
   });
 }
-function leaveBuilding() { const d = DOORS[0]; say(["광장으로 내려가자."], () => goScene("plaza", d.x, d.y + 1, "down")); }
+function upToLobby() { say(["엘리베이터를 타고 5층으로 올라가자!"], () => goScene("lobby", 5, 16, "up", () => {
+    if (lobbyVisited) { lock = false; return; }
+    lobbyVisited = true;
+    say(["여기는 5층 대강당 앞 로비라네! 낮 11시부터 15시까지 부스가 열리지.", "바로 앞이 오박사 부스, 그 오른쪽이 로켓단 부스! 스탬프를 모아 보게.", "저녁 행사는 오박사 부스 바로 옆 문으로 들어가면 대강당이라네!"]);
+  })); }
+function leaveBuilding() { say(["1층으로 내려가자."], () => goScene("ground", 7, 4, "down")); }
 const SPOTS = {
   photo: ["포토부스다! 사진을 찍어 인증하면 오박사 부스 스탬프 1개!"],
   ball: ["몬스터볼 던지기다! 과녁에 넣으면 오박사 부스 스탬프 1개!"],
   toilet: ["화장실이다. 부스를 돌기 전에 들러 두자."],
-  trash: ["분리수거함이다. 쓰레기는 여기에 버리자!"]
+  trash: ["분리수거함이다. 쓰레기는 여기에 버리자!"],
+  table: ["피크닉 테이블이다. 날이 풀리면 여기서 밥 먹기 딱이겠다."],
+  pbin: ["광장 분리수거함이다. 쓰레기는 꼭 분리해서 버리자!"]
 };
-function openSpot(id) { route = []; held = null; say(SPOTS[id]); }
+function openSpot(id) { route = []; held = null; if (id === "trash" && R_EVENT_ON) return eggTalk("trash"); say(SPOTS[id]); }
 function openBooth(id) { route = []; held = null; say(PLACES[id].talk, () => showPlace([id])); }
+
+
+/* ===== 로켓단 R 오브제 이스터에그 ===== */
+const R_EVENT_ON = false;
+const EGG_SPOTS = [];
+const EGG_TOTAL = 0;
+const EGG_TEXT = {};
+function eggSpotAt(x, y) { return R_EVENT_ON ? EGG_SPOTS.find(e => e.scene === scene && e.x === x && e.y === y) : null; }
+function approach(tx, ty, then) {
+  const opts = Object.entries(DIRS).map(([d, [dx, dy]]) => ({ x: tx - dx, y: ty - dy, d })).filter(o => walkable(o.x, o.y) && !npcAt(o.x, o.y));
+  let best = null, len = 1e9;
+  opts.forEach(o => { if (o.x === P.x && o.y === P.y) { best = o; len = 0; return; } const r = bfs(o.x, o.y); if (r && r.length < len) { best = o; len = r.length; } });
+  if (best) goTo(best.x, best.y, () => { P.dir = best.d; then(); });
+}
+function eggTalk(id) { route = []; held = null; say(EGG_TEXT[id].lines, () => revealEgg(id)); }
+
+/* 예/아니오 선택 */
+const choicesEl = document.getElementById("choices"), choiceBtns = [...choicesEl.querySelectorAll("button")];
+let choosing = null, choiceIdx = 0;
+function markChoice() { choiceBtns.forEach((b, i) => b.classList.toggle("on", i === choiceIdx)); }
+function ask(text, cb) {
+  say([text]); const wait = setInterval(() => { if (!typing) { clearInterval(wait); choosing = cb; choiceIdx = 0; markChoice(); choicesEl.hidden = false; nextEl.hidden = true; } }, 50);
+}
+function pickChoice(yes) { if (!choosing) return; const cb = choosing; choosing = null; choicesEl.hidden = true; dlg.hidden = true; sfx.next(); cb(yes); }
+choiceBtns.forEach((b, i) => b.addEventListener("click", e => { e.stopPropagation(); pickChoice(i === 0); }));
+
+/* 로켓단원 퀴즈: 예 → 아니오 → 예 */
+function rocketQuiz() {}
+
+/* 중심 로고 */
+function logoEgg() {}
+
+/* 그림: R 몬스터볼 · CU 앞 의자 */
+function drawRBall(c, X, Y, S) {
+  const k = S / 32;
+  const R = ["11110", "10001", "10001", "11110", "10100", "10010", "10001"];
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+    const dx = x - 15.5, dy = y - 15.5, d = Math.hypot(dx, dy);
+    if (d > 15) continue;
+    let col = d > 13.6 ? "#1b1d2a" : y < 14 ? (dx < -4 && dy < -6 && d < 11 ? "#ff8a8a" : "#e8483c") : y < 18 ? "#1b1d2a" : "#f4f6fb";
+    if (y >= 18 && d <= 13.6 && dy > 8) col = "#d6d9e4";
+    if (Math.hypot(dx, dy - 0) < 5.2) col = d < 4 ? (d < 2.4 ? "#ffffff" : "#e9ecf4") : "#1b1d2a";
+    const rx = x - 13, ry = y - 3;
+    if (ry >= 0 && ry < 7 && rx >= 0 && rx < 5 && R[ry][rx] === "1") col = "#ffffff";
+    c.fillStyle = col; c.fillRect(Math.round(X + x * k), Math.round(Y + y * k), Math.ceil(k), Math.ceil(k));
+  }
+}
+function drawVisibleEggs(c) {          // 겉으로 보이는 R 오브제 (작게)
+  EGG_SPOTS.forEach(e => { if (!e.show || e.scene !== scene) return;
+    const X = e.x * T + e.show[0], Y = e.y * T + e.show[1];
+    c.save(); if (e.peek) { c.beginPath(); c.rect(X - 2, Y - 2, 12, e.peek - Y + 2); c.clip(); }
+    c.fillStyle = "rgba(40,30,30,.22)"; c.fillRect(X, Y + 6, 7, 2);
+    drawRBall(c, X, Y, 7); c.restore(); });
+}
+function drawChair(c, tx, ty) {
+  const X = tx * T, Y = ty * T;
+  c.fillStyle = "rgba(60,40,40,.22)"; c.fillRect(X + 2, Y + 13, 12, 2);
+  c.fillStyle = "#6a4a3a"; c.fillRect(X + 3, Y + 1, 10, 3); c.fillRect(X + 3, Y + 1, 2, 8);
+  c.fillStyle = "#b07848"; c.fillRect(X + 2, Y + 7, 12, 3); c.fillStyle = "#c89060"; c.fillRect(X + 2, Y + 7, 12, 1);
+  c.fillStyle = "#4a3428"; c.fillRect(X + 3, Y + 10, 2, 4); c.fillRect(X + 11, Y + 10, 2, 4);
+}
+
+/* 발견 화면 */
+const eggOv = document.getElementById("eggOv"), eggCv = document.getElementById("eggCv");
+function foundList() { try { return JSON.parse(localStorage.getItem("gn-r-found") || "[]"); } catch (e) { return []; } }
+function revealEgg(id) {
+  route = []; held = null; lock = true;
+  const f = foundList(); if (!f.includes(id)) f.push(id); try { localStorage.setItem("gn-r-found", JSON.stringify(f)); } catch (e) {}
+  const g = eggCv.getContext("2d"); g.clearRect(0, 0, 32, 32); drawRBall(g, 0, 0, 32);
+  document.getElementById("eggTitle").textContent = id === "logo" ? "숨겨진 R 오브제 발견!" : "R 오브제 발견!";
+  const tEl = document.getElementById("eggText"); tEl.textContent = ""; EGG_TEXT[id].text.split("\n").forEach((l, i) => { if (i) tEl.appendChild(document.createElement("br")); tEl.appendChild(document.createTextNode(l)); });
+  eggOv.hidden = false; sfx.fanfare(); document.getElementById("eggClose").focus({ preventScroll: true });
+}
+function closeEgg() { sfx.close(); eggOv.hidden = true; lock = false; }
+document.getElementById("eggClose").addEventListener("click", closeEgg);
 
 /* ===== 포스터 ===== */
 const posterOv = document.getElementById("posterOv");
@@ -1058,14 +1307,18 @@ function interact() {
   if (!dlg.hidden) return advance();
   if (lock) return;
   const [dx, dy] = DIRS[P.dir], nx = P.x + dx, ny = P.y + dy;
-  const fn = npcAt(nx, ny);
+  const fn = npcAt(nx, ny), es = eggSpotAt(nx, ny);
   if (fn) talkNpc(fn);
+  else if (es) eggTalk(es.id);
+  else if (R_EVENT_ON && scene === "plaza" && ny === 4 && (nx === 8 || nx === 9)) logoEgg();
   else if (grid[ny] && grid[ny][nx] === "s") openPoster();
   else if (grid[ny] && grid[ny][nx] === "k") openBooth(LOBBY_BOOTH(nx));
   else if (grid[ny] && grid[ny][nx] === "P") openSpot("photo");
   else if (grid[ny] && grid[ny][nx] === "B") openSpot("ball");
   else if (grid[ny] && grid[ny][nx] === "m") openSpot("toilet");
   else if (grid[ny] && grid[ny][nx] === "z") openSpot("trash");
+  else if (scene === "plaza" && grid[ny] && grid[ny][nx] === "x") openSpot("table");
+  else if (grid[ny] && grid[ny][nx] === "Z") openSpot("pbin");
   else if (grid[ny] && grid[ny][nx] === "S") openStation(STATION(nx));
   else if (grid[ny] && grid[ny][nx] === "r") openStation("raffle");
   else say(["여기엔 아무것도 없는 것 같다."]);
@@ -1074,6 +1327,8 @@ document.getElementById("abtn").addEventListener("click", interact);
 document.getElementById("listBtn").addEventListener("click", () => { if (!dlg.hidden) return; showPlace(["oak", "rocket", "hall"]); });
 const KEYS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", w: "up", s: "down", a: "left", d: "right" };
 document.addEventListener("keydown", e => {
+  if (!eggOv.hidden) { if (["Escape", "Enter", " ", "z"].includes(e.key)) { e.preventDefault(); closeEgg(); } return; }
+  if (choosing) { e.preventDefault(); if (["ArrowUp", "ArrowDown", "w", "s"].includes(e.key)) { choiceIdx = 1 - choiceIdx; markChoice(); } else if (["Enter", " ", "z"].includes(e.key)) pickChoice(choiceIdx === 0); return; }
   if (!posterOv.hidden || !placeOv.hidden) { if (e.key === "Escape") { if (!posterOv.hidden) closePoster(); else document.getElementById("placeClose").click(); } return; }
   if (KEYS[e.key]) { e.preventDefault(); if (!lock) { route = []; onArrive = null; held = KEYS[e.key]; } return; }
   if (e.key === " " || e.key === "Enter" || e.key === "z") { if (e.target.tagName === "BUTTON" && e.target.id !== "abtn") return; e.preventDefault(); interact(); }
