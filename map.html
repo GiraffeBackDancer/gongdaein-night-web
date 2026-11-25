@@ -222,7 +222,7 @@ const PLACES = {
     events: [
       { t: "몬스터볼 던지기", d: "성공하면 스탬프 1개" },
       { t: "포켓 룰렛", d: "같은 포켓몬 2칸 이상이면 스탬프 1개 · 메가 카드가 나오면 프리패스" },
-      { t: "포토존 · 포토부스", d: "11:00–18:00 · 사진을 찍으면 스탬프 1개" }
+      { t: "포토존 · 포토부스", d: "11:00–18:00 · 포토존에서 사진 찍고 인증하면 스탬프 1개" }
     ],
     note: '<div class="reward"><div class="gold"><b>스탬프 3개</b><span>포켓몬 카드(응모권) 1장 + 지우 모자 (선착순 50명)</span></div></div>'
   },
@@ -685,11 +685,11 @@ LG[10][2] = "a"; LG[10][3] = "a";                  // 대강당 양문
 lfill(4, 11, 6, 13, "k");                          // 오박사 부스
 lfill(7, 12, 8, 13, "B");                          // 몬스터볼 던지기
 lfill(9, 15, 10, 16, "P");                         // 포토부스 (몬스터볼 · 로켓단 맞은편)
+lfill(11, 15, 13, 16, "Q");                        // 포토존 (포토부스 옆)
 lfill(10, 11, 12, 13, "k");                        // 로켓단 부스
 LG[17][5] = "e";                                   // 엘리베이터 (오박사 부스 맞은편)
 LG[17][2] = "m";                                   // 화장실 (대강당 문 맞은편)
 LG[16][1] = "z";                                   // 분리수거함 (왼쪽 하나)
-LG[16][13] = "n";                                  // 화분
 const LOBBY_BOOTH = x => x <= 6 ? "oak" : "rocket";
 const LOBBY_FRONT = { oak: [5, 14], rocket: [11, 14] };
 
@@ -698,6 +698,12 @@ const lobbyBase = document.createElement("canvas"); lobbyBase.width = cv.width; 
   const t = T;
   px(c, 0, 0, cv.width, cv.height, "#241e30");
   for (let i = 0; i < 50; i++) { const r = rnd(i, 3, 7); px(c, r % cv.width, (r >>> 9) % cv.height, 1, 1, "#3a3248"); }
+  const plant = (X, Y) => {          // 주황 화분 + 초록 잎 (X,Y = 화분 바닥 중앙)
+    px(c, X - 5, Y - 1, 11, 2, "rgba(40,30,40,.25)");
+    px(c, X - 4, Y - 7, 9, 7, "#c86a30"); px(c, X - 5, Y - 8, 11, 2, "#e08848"); px(c, X - 3, Y - 6, 2, 5, "#e89058");
+    oval(c, X + .5, Y - 12, 6, 5, "#2e7a2e"); oval(c, X - 2.5, Y - 13, 3.5, 3, "#4aa83a"); oval(c, X + 3.5, Y - 13, 3.5, 3, "#4aa83a"); oval(c, X + .5, Y - 16, 3.5, 3, "#5cc04a"); px(c, X - 2, Y - 17, 2, 1, "#a8e890");
+  };
+  const ball = (cx, cy, r) => { oval(c, cx, cy, r + .6, r + .6, "#2a2a38"); oval(c, cx, cy, r, r, "#f8f8f8"); c.save(); c.beginPath(); c.rect(cx - r - 1, cy - r - 1, 2 * r + 2, r + .5); c.clip(); oval(c, cx, cy, r, r, "#e83840"); c.restore(); px(c, cx - r, cy - .5, 2 * r, 1, "#2a2a38"); oval(c, cx, cy, 1.2, 1.2, "#2a2a38"); px(c, cx - .5, cy - .5, 1, 1, "#ffffff"); };
   // 복도 바닥
   for (let y = 11; y <= 16; y++) for (let x = 1; x < 14; x++) {
     px(c, x * t, y * t, t, t, (x + y) % 2 ? "#ece6da" : "#e4ddd0");
@@ -728,30 +734,85 @@ const lobbyBase = document.createElement("canvas"); lobbyBase.width = cv.width; 
   px(c, 5 * t + 1, 15 * t, t - 2, 2 * t, "#3868b8"); px(c, 5 * t + 1, 15 * t, 2, 2 * t, "#5888d8");
   px(c, 2 * t, 14 * t + 1, 12 * t, t - 2, "#3868b8"); px(c, 2 * t, 14 * t + 1, 12 * t, 2, "#5888d8");
   px(c, 2 * t + 1, 11 * t, 2 * t - 2, 3 * t, "#3868b8"); px(c, 2 * t + 1, 11 * t, 2, 3 * t, "#5888d8");
-  function booth(x0, y0, rocket) {
-    const X = x0 * t, Y = y0 * t, W = 3 * t;
-    px(c, X + 2, Y + 3 * t, W, 3, "rgba(60,40,40,.2)");
-    px(c, X + 2, Y, 2, 2 * t, "#585060"); px(c, X + W - 4, Y, 2, 2 * t, "#585060");
-    px(c, X + 1, Y + 1, W - 2, 14, "#403848"); px(c, X + 2, Y + 2, W - 4, 12, rocket ? "#282030" : "#ffffff");
-    if (rocket) { const rx = X + W / 2 - 4; px(c, rx, Y + 4, 2, 8, "#e84048"); px(c, rx + 2, Y + 4, 4, 2, "#e84048"); px(c, rx + 5, Y + 5, 2, 2, "#e84048"); px(c, rx + 2, Y + 7, 4, 2, "#e84048"); px(c, rx + 4, Y + 9, 2, 1, "#e84048"); px(c, rx + 5, Y + 10, 2, 2, "#e84048"); }
-    else { px(c, X + 2, Y + 2, W - 4, 3, "#e84048"); px(c, X + 8, Y + 7, 6, 5, "#48a0e8"); px(c, X + 18, Y + 7, 6, 5, "#f0c030"); px(c, X + 28, Y + 7, 6, 5, "#e84048"); }
-    [X + 10, X + W - 18].forEach(sx => { px(c, sx, Y + 17, 8, 7, "#403040"); px(c, sx + 1, Y + 18, 6, 5, "#f8c8a0"); px(c, sx, Y + 15, 8, 3, rocket ? "#282030" : "#805838"); px(c, sx - 1, Y + 24, 10, 6, rocket ? "#282030" : "#ffffff"); px(c, sx + 3, Y + 24, 2, 6, rocket ? "#e84048" : "#98c0e8"); });
-    px(c, X, Y + 2 * t - 2, W, 18, "#403848"); px(c, X + 1, Y + 2 * t - 1, W - 2, 16, rocket ? "#e84048" : "#f8f8f8"); px(c, X + 1, Y + 2 * t - 1, W - 2, 2, rocket ? "#ff7078" : "#ffffff");
-    if (rocket) { px(c, X + 6, Y + 2 * t + 4, 8, 6, "#f4c430"); px(c, X + W - 16, Y + 2 * t + 3, 10, 8, "#282030"); px(c, X + W - 13, Y + 2 * t + 5, 4, 4, "#e84048"); }
-    else { px(c, X + 5, Y + 2 * t + 2, 14, 10, "#303848"); px(c, X + 6, Y + 2 * t + 3, 12, 7, "#1b2442"); px(c, X + 7, Y + 2 * t + 5, 3, 3, "#e84048"); px(c, X + 11, Y + 2 * t + 5, 3, 3, "#e84048"); px(c, X + 15, Y + 2 * t + 5, 2, 3, "#48a0e8"); px(c, X + W - 14, Y + 2 * t + 4, 8, 6, "#e84048"); px(c, X + W - 13, Y + 2 * t + 5, 6, 2, "#ff9090"); }
+  // 오박사 부스: 액자 · 책장 · 룰렛(777) · 데스크 · 스탬프 버튼 · 선물상자
+  { const X = 4 * t, Y = 11 * t;
+    px(c, X + 4, 9 * t - 2, 11, 10, "#9098b0"); px(c, X + 5, 9 * t - 1, 9, 8, "#a8d8f0"); px(c, X + 5, 9 * t + 4, 9, 3, "#58a848"); px(c, X + 7, 9 * t + 2, 4, 2, "#78c060");
+    px(c, X + 17, 9 * t - 2, 11, 10, "#9098b0"); px(c, X + 18, 9 * t - 1, 9, 8, "#ffffff"); px(c, X + 20, 9 * t + 1, 2, 2, "#e84858"); px(c, X + 23, 9 * t + 1, 2, 2, "#e84858"); px(c, X + 20, 9 * t + 3, 5, 2, "#e84858"); px(c, X + 21, 9 * t + 5, 3, 1, "#e84858");
+    const SX = X + 30, SY = 9 * t - 4;
+    px(c, SX, SY, 17, Y - SY + 6, "#7a4a24"); px(c, SX + 2, SY + 2, 13, Y - SY + 2, "#4a2c18");
+    [SY + 9, SY + 17, SY + 25].forEach(y => px(c, SX + 2, y, 13, 2, "#7a4a24"));
+    ball(SX + 6, SY + 6, 2.6); [["#48a0e8", 3], ["#78c060", 3], ["#f4c430", 2], ["#e84048", 3]].forEach(([col, w], i) => px(c, SX + 3 + i * 3, SY + 12, w - 1, 5, col));
+    [["#e84048", 2], ["#f8f8f8", 3], ["#48a0e8", 2], ["#78c060", 3]].forEach(([col], i) => px(c, SX + 3 + i * 3, SY + 20, 2, 5, col));
+    px(c, X + 1, Y + 34, 46, 4, "rgba(60,40,40,.22)");
+    // 룰렛 (슬롯머신)
+    const RX = X + 1, RY = Y - 10;
+    px(c, RX, RY + 4, 20, 34, "#7a1820"); px(c, RX + 1, RY + 5, 18, 32, "#d83040"); px(c, RX + 1, RY + 5, 18, 2, "#f06068");
+    oval(c, RX + 10, RY + 4, 9, 5, "#e0a020"); oval(c, RX + 10, RY + 4, 7.5, 4, "#f8c830"); px(c, RX + 9, RY + 1, 2, 5, "#fff2a0"); px(c, RX + 7, RY + 3, 6, 2, "#fff2a0");
+    px(c, RX + 2, RY + 10, 16, 10, "#f0c030"); px(c, RX + 3, RY + 11, 14, 8, "#ffffff");
+    [RX + 4, RX + 8, RX + 12].forEach(x => { px(c, x, RY + 12, 3, 1, "#d82030"); px(c, x + 2, RY + 13, 1, 2, "#d82030"); px(c, x + 1, RY + 15, 1, 3, "#d82030"); });
+    px(c, RX + 2, RY + 22, 16, 5, "#901c24");
+    px(c, RX + 20, RY + 10, 2, 10, "#9098a8"); oval(c, RX + 21, RY + 9, 2.2, 2.2, "#e83840");
+    // 데스크
+    const DXk = X + 18, DYk = Y + 12;
+    px(c, DXk, DYk, 29, 6, "#d8985a"); px(c, DXk, DYk, 29, 1, "#f0b878"); px(c, DXk, DYk + 6, 29, 16, "#a86a38");
+    for (let i = 1; i < 4; i++) px(c, DXk + i * 7, DYk + 7, 1, 15, "#8a5228"); px(c, DXk, DYk + 13, 29, 1, "#8a5228");
+    px(c, DXk + 2, DYk - 2, 6, 7, "#ffffff"); px(c, DXk + 3, DYk, 4, 1, "#9098a8"); px(c, DXk + 3, DYk + 2, 3, 1, "#9098a8");
+    px(c, DXk + 9, DYk, 9, 5, "#ffffff"); [0, 3, 6].forEach(dx => { px(c, DXk + 10 + dx, DYk + 1, 2, 1, "#e84048"); px(c, DXk + 10 + dx, DYk + 3, 2, 1, "#e84048"); });
+    px(c, DXk + 19, DYk + 1, 9, 4, "#303040"); px(c, DXk + 23, DYk - 5, 1, 6, "#585868"); oval(c, DXk + 23.5, DYk - 6, 3.4, 3.4, "#c82030"); oval(c, DXk + 23, DYk - 7, 2.4, 2.4, "#f04048"); px(c, DXk + 22, DYk - 8, 1, 1, "#ffb0b0");
+    // 선물상자
+    const GX = X + 38, GY = Y + 34;
+    px(c, GX, GY, 10, 9, "#ffffff"); px(c, GX, GY, 10, 1, "#e8e8f0"); px(c, GX + 4, GY, 2, 9, "#e83040"); px(c, GX, GY + 3, 10, 2, "#e83040"); px(c, GX + 1, GY - 3, 3, 3, "#e83040"); px(c, GX + 6, GY - 3, 3, 3, "#e83040");
   }
-  booth(4, 11, false); booth(10, 11, true);
-  const BX = 7 * t, BY = 12 * t;
-  px(c, BX + 2, BY + 2 * t - 2, 2 * t, 3, "rgba(60,40,40,.2)");
-  px(c, BX + 2, BY, 2 * t - 4, 2 * t - 8, "#403848"); px(c, BX + 3, BY + 1, 2 * t - 6, 2 * t - 10, "#48a0a8");
-  [[8, 7], [18, 7], [13, 15]].forEach(([dx, dy]) => { oval(c, BX + dx + 2, BY + dy, 4, 4, "#403848"); oval(c, BX + dx + 2, BY + dy, 3, 3, "#1b2442"); });
-  px(c, BX + 18, BY + 2 * t - 8, 12, 7, "#8a5a38"); px(c, BX + 18, BY + 2 * t - 8, 12, 2, "#a87050");
-  [[20, "#e84048"], [24, "#f8f8f8"], [27, "#e84048"]].forEach(([dx, col]) => oval(c, BX + dx, BY + 2 * t - 9, 2, 2, col));
-  const PX = 9 * t, PY = 15 * t;
-  px(c, PX + 2, PY + 2 * t - 2, 2 * t, 3, "rgba(60,40,40,.2)");
-  px(c, PX, PY, 2 * t, 2 * t - 4, "#f8e8f0"); px(c, PX, PY, 2 * t, 2, "#e8a8c8");
-  [[2, 2, "#e84048"], [8, 0, "#f4c430"], [16, 0, "#48a0e8"], [24, 0, "#78c060"], [29, 3, "#e84048"], [0, 9, "#f4c430"], [29, 10, "#48a0e8"]].forEach(([dx, dy, col]) => { oval(c, PX + dx + 2, PY + dy + 3, 3, 3.5, col); px(c, PX + dx + 1, PY + dy + 1, 1, 1, "#fff"); });
-  px(c, PX + 8, PY + 10, 16, 12, "#403848"); px(c, PX + 9, PY + 11, 14, 10, "#fff"); px(c, PX + 12, PY + 13, 8, 5, "#e84048");
+  // 몬스터볼 던지기: 초록 언덕 + 깡통 3개 + 던지는 자리
+  { const BX = 7 * t, BY = 12 * t;
+    oval(c, BX + 16, BY + 20, 18, 11.5, "#2e6a28"); oval(c, BX + 16, BY + 20, 17, 10.5, "#58b048"); oval(c, BX + 14, BY + 15, 11, 5, "#78c860");
+    const can = (x, y, col) => { px(c, x, y + 2, 10, 10, col); px(c, x, y + 2, 2, 10, "rgba(255,255,255,.35)"); oval(c, x + 5, y + 2, 5, 2, "#d8dce6"); oval(c, x + 5, y + 2, 3.5, 1.2, "#3a3a48"); px(c, x, y + 11, 10, 1, "rgba(0,0,0,.25)"); oval(c, x + 5, y + 7, 2.2, 2.2, "#ffffff"); px(c, x + 3, y + 7, 5, 1, col); };
+    can(BX + 4, BY + 9, "#e83840"); can(BX + 18, BY + 9, "#f0c030"); can(BX + 11, BY - 1, "#3878d0");
+    [[BX + 3, BY - 1], [BX + 28, BY - 1], [BX + 6, BY - 4], [BX + 25, BY - 4]].forEach(([x, y]) => px(c, x, y, 1, 3, "#f8d030"));
+    px(c, BX + 8, BY + 23, 16, 6, "#e8b040"); px(c, BX + 9, BY + 24, 14, 4, "#f8e6b0"); oval(c, BX + 14, BY + 26, 1.3, 1.8, "#3a3040"); oval(c, BX + 18, BY + 26, 1.3, 1.8, "#3a3040");
+    const SX2 = BX + 29; px(c, SX2 + 4, BY + 18, 1, 10, "#7a4a24"); px(c, SX2, BY + 15, 9, 7, "#c88848"); px(c, SX2 + 1, BY + 16, 7, 5, "#f8ecd8"); px(c, SX2 + 2, BY + 19, 1, 1, "#303040"); px(c, SX2 + 3, BY + 18, 2, 1, "#303040"); px(c, SX2 + 5, BY + 17, 1, 1, "#e83840");
+  }
+  // 로켓단 부스: 빨간 커튼 무대 + 큰 R + 차단봉
+  { const X = 10 * t, Y = 11 * t, top = 9 * t + 4;
+    px(c, X, top, 48, Y + 30 - top, "#2a2438"); px(c, X + 1, top + 1, 46, Y + 28 - top, "#3a3048");
+    px(c, X, top, 48, 6, "#c82838"); px(c, X, top + 5, 48, 1, "#e0b030");
+    for (let i = 0; i < 8; i++) px(c, X + i * 6 + 2, top + 6, 3, 2, "#c82838");
+    [[X, 1], [X + 37, -1]].forEach(([cx, d]) => { px(c, cx, top + 6, 11, Y + 26 - top, "#c02030"); for (let k = 0; k < 3; k++) px(c, cx + 2 + k * 3, top + 6, 1, Y + 26 - top, "#901820"); px(c, cx + (d > 0 ? 9 : 0), top + 6, 2, Y + 26 - top, "#e04050"); px(c, cx, Y + 2, 11, 3, "#e0b030"); });
+    px(c, X + 21, top + 7, 6, 3, "#f8d860");
+    const R = ["11110", "10001", "10001", "11110", "10100", "10010", "10001"], RX0 = X + 16, RY0 = top + 14;
+    R.forEach((row, ry) => [...row].forEach((v, rx) => { if (v === "1") { px(c, RX0 + rx * 3 + 1, RY0 + ry * 3 + 1, 3, 3, "#701018"); px(c, RX0 + rx * 3, RY0 + ry * 3, 3, 3, "#e83040"); } }));
+    px(c, RX0, RY0, 3, 1, "#ff8088");
+    px(c, X + 12, Y + 14, 24, 10, "#3a3248"); px(c, X + 18, Y + 12, 12, 7, "#c88830"); px(c, X + 19, Y + 13, 10, 5, "#f0b848");
+    px(c, X + 2, Y + 36, 46, 3, "rgba(60,40,40,.22)");
+    const posts = [X + 4, X + 15, X + 32, X + 43];
+    for (let i = 0; i < 3; i++) { if (i === 1) continue; const a = posts[i], b = posts[i + 1]; for (let x = a; x <= b; x++) { const u = (x - a) / (b - a); px(c, x, Y + 29 + Math.round(Math.sin(u * Math.PI) * 3), 1, 2, "#c82030"); } }
+    posts.forEach(x => { px(c, x - 2, Y + 37, 5, 2, "#b88820"); px(c, x, Y + 28, 2, 10, "#e0b030"); px(c, x, Y + 28, 1, 10, "#f8d860"); oval(c, x + 1, Y + 27, 2, 2, "#f8d050"); });
+  }
+  // 포토부스 (부스형 기계)
+  { const PX = 9 * t, PY = 15 * t;
+    px(c, PX + 2, PY + 2 * t - 2, 2 * t, 3, "rgba(60,40,40,.2)");
+    px(c, PX + 1, PY - 2, 30, 32, "#404a68"); px(c, PX + 2, PY - 1, 28, 30, "#6a7aa0");
+    px(c, PX + 2, PY - 1, 28, 5, "#f0c030"); px(c, PX + 12, PY, 8, 3, "#303040"); oval(c, PX + 16, PY + 1.5, 1.2, 1.2, "#a8d8f0");
+    px(c, PX + 3, PY + 5, 12, 23, "#d02838"); for (let i = 0; i < 3; i++) px(c, PX + 5 + i * 4, PY + 5, 1, 23, "#a01c28");
+    px(c, PX + 17, PY + 7, 11, 9, "#1b2442"); px(c, PX + 18, PY + 8, 9, 7, "#3a5888"); px(c, PX + 20, PY + 10, 5, 3, "#a8d8f0");
+    px(c, PX + 18, PY + 19, 9, 3, "#303040"); px(c, PX + 19, PY + 20, 7, 1, "#f8f8f8");
+  }
+  // 포토존: 주황 체크 배경 · 조명 2개 · 발판 · 소품 테이블 · 전신거울
+  { const ZX = 11 * t, ZY = 15 * t;
+    px(c, ZX + 6, ZY + 1, 24, 19, "#a85818");
+    for (let y = 0; y < 17; y += 3) for (let x = 0; x < 22; x += 3) px(c, ZX + 7 + x, ZY + 2 + y, 3, 3, ((x + y) / 3) % 2 ? "#f0a030" : "#f8b848");
+    px(c, ZX + 13, ZY + 6, 10, 8, "#ffffff"); px(c, ZX + 14, ZY + 7, 8, 6, "#e83840"); px(c, ZX + 16, ZY + 5, 4, 2, "#e83840"); oval(c, ZX + 18, ZY + 10, 2.2, 2.2, "#ffffff"); oval(c, ZX + 18, ZY + 10, 1.2, 1.2, "#f8b848");
+    [[ZX + 4, ZY - 1], [ZX + 31, ZY - 1]].forEach(([x, y]) => { px(c, x, y, 1, 3, "#f8d030"); px(c, x - 1, y + 1, 3, 1, "#f8d030"); });
+    px(c, ZX + 5, ZY + 21, 26, 8, "#c88820"); px(c, ZX + 6, ZY + 21, 24, 6, "#f8c040"); px(c, ZX + 6, ZY + 21, 24, 1, "#ffe080");
+    [ZX + 2, ZX + 33].forEach((x, i) => { px(c, x + 1, ZY + 12, 1, 16, "#404048"); px(c, x - 1, ZY + 27, 1, 2, "#404048"); px(c, x + 3, ZY + 27, 1, 2, "#404048"); px(c, x, ZY + 26, 3, 1, "#404048");
+      px(c, x - 1, ZY + 6, 6, 7, "#303038"); px(c, x + (i ? -1 : 3), ZY + 7, 2, 5, "#fff4b0"); });
+    const TX = 13 * t + 2, TY = ZY + 4;
+    px(c, TX, TY, 12, 4, "#c88848"); px(c, TX, TY, 12, 1, "#e0a868"); px(c, TX + 1, TY + 4, 2, 7, "#8a5a30"); px(c, TX + 9, TY + 4, 2, 7, "#8a5a30");
+    ball(TX + 2.5, TY - 2, 2.4);
+    const MX = 13 * t + 4, MY = 16 * t - 3;
+    px(c, MX + 1, MY + 17, 9, 2, "rgba(60,40,40,.2)"); px(c, MX, MY, 9, 18, "#d8a020"); px(c, MX + 1, MY + 1, 7, 16, "#b8e0f0"); px(c, MX + 2, MY + 2, 1, 6, "#ffffff"); px(c, MX + 4, MY + 3, 1, 3, "#ffffff");
+    px(c, MX - 1, MY - 3, 2, 4, "#f8d030"); px(c, MX + 8, MY - 3, 2, 4, "#f8d030"); px(c, MX - 1, MY - 3, 2, 1, "#303030"); px(c, MX + 8, MY - 3, 2, 1, "#303030"); px(c, MX, MY - 1, 9, 1, "#f8d030");
+  }
   // 쓰레기통 (분리수거함)
   [[1, "#3868b8"]].forEach(([x, col]) => { const X = x * t, Y = 16 * t; px(c, X + 2, Y + 13, 12, 3, "rgba(60,40,40,.2)"); px(c, X + 3, Y + 2, 10, 12, "#403848"); px(c, X + 4, Y + 3, 8, 10, col); px(c, X + 3, Y + 1, 10, 3, "#585868"); px(c, X + 6, Y + 6, 4, 4, "#ffffff"); px(c, X + 7, Y + 7, 2, 2, col); });
   // 화분
@@ -802,7 +863,7 @@ const SCENES = {
   lobby: { grid: LG, base: lobbyBase, tags: () => {
     addTag("5F 대강당 앞", 7.5, 5.8, true);
     addTag("대강당", 3, 7.7, false, "day");
-    addTag("오박사 부스", 5.5, 10.5); addTag("몬스터볼", 8, 11.5); addTag("로켓단 부스", 11.5, 10.5); addTag("포토부스", 10, 18.5);
+    addTag("오박사 부스", 5.5, 10.5); addTag("몬스터볼", 8, 11.5); addTag("로켓단 부스", 11.5, 10.5); addTag("포토부스", 9.6, 18.5); addTag("포토존", 12.5, 18.5);
     addTag("화장실", 2.5, 18.5); addTag("엘리베이터", 5.5, 18.5);
   } },
   hall: { grid: HG, base: hallBase, tags: () => {
@@ -918,7 +979,7 @@ const NPCS = {
     { x: 11, y: 15, pal: coat("#f4c430", "#c89820", "#3a4a6a", "#2a3450", "#e84048", "#302020"), lines: ["배틀 결승 승부 예측 맞히면 닌텐도 스위치 라이트래!", "입장할 때 뽑기 통에 이름 넣는 거 잊지 말자!"] },
   ],
   lobby: [
-    { x: 13, y: 14, dir: "left", still: true, pal: coat("#303038", "#202028", "#303038", "#202028", "#e84048", "#202020"), lines: ["포토부스에서 사진 찍고 인증하면 스탬프 1개래!", "그라찌에에서 따뜻한 거 사 올걸... 밖에 너무 추워."] }
+    { x: 13, y: 12, dir: "left", still: true, pal: coat("#303038", "#202028", "#303038", "#202028", "#e84048", "#202020"), lines: ["포토존에서 사진 찍고 인증하면 스탬프 1개래!", "그라찌에에서 따뜻한 거 사 올걸... 밖에 너무 추워."] }
   ],
   hall: []
 };
@@ -963,6 +1024,7 @@ function tryStep(dir, auto) {
   if (grid[ny] && grid[ny][nx] === "s") openPoster();
   if (grid[ny] && grid[ny][nx] === "k") openBooth(LOBBY_BOOTH(nx));
   if (grid[ny] && grid[ny][nx] === "P") openSpot("photo");
+  if (grid[ny] && grid[ny][nx] === "Q") openSpot("photozone");
   if (grid[ny] && grid[ny][nx] === "B") openSpot("ball");
   if (grid[ny] && grid[ny][nx] === "m") openSpot("toilet");
   if (grid[ny] && grid[ny][nx] === "z") openSpot("trash");
@@ -1014,6 +1076,7 @@ function tapAt(tx, ty) {
     const v = grid[ty][tx];
     if (v === "k") { const id = LOBBY_BOOTH(tx), [fx, fy] = LOBBY_FRONT[id]; return goTo(fx, fy, () => { P.dir = "up"; openBooth(id); }); }
     if (v === "P") return goTo(tx, 14, () => { P.dir = "down"; openSpot("photo"); });
+    if (v === "Q") return goTo(tx, 14, () => { P.dir = "down"; openSpot("photozone"); });
     if (v === "m" || (v === "W" && tx === 2 && ty === 17)) return goTo(2, 16, () => { P.dir = "down"; openSpot("toilet"); });
     if (v === "z") return goTo(2, 16, () => { P.dir = "left"; openSpot("trash"); });
     if (v === "B") return goTo(tx, 14, () => { P.dir = "up"; openSpot("ball"); });
@@ -1058,9 +1121,9 @@ function sceneFx(c, now) {
     for (let i = 0; i < 6; i++) { const r = rnd(Math.floor(now / 700), i, 4), x = r % COLS, y = 16 + (r >>> 5) % 5;
       if (grid[y] && grid[y][x] === "g") { c.fillStyle = "#ffffff"; c.fillRect(x * T + (r >>> 9) % 14, y * T + (r >>> 13) % 14, 1, 1); } }
   } else if (scene === "lobby") {
-    // 오박사 부스 모니터: 포켓 룰렛이 돌아가는 화면
-    const cols = ["#e84048", "#48a0e8", "#f4c430", "#78c060"], k = Math.floor(now / 140);
-    [0, 4, 8].forEach((dx, i) => { c.fillStyle = cols[(k + i * 2) % 4]; c.fillRect(4 * T + 7 + dx, 13 * T + 5, 3, 3); });
+    // 오박사 부스 룰렛: 아래 전구가 번갈아 깜빡임
+    const k = Math.floor(now / 180);
+    [0, 1, 2, 3].forEach(i => { c.fillStyle = (k + i) % 2 ? "#fff4a0" : "#c89020"; c.fillRect(4 * T + 4 + i * 4, 11 * T + 13, 2, 2); });
     // 엘리베이터 층 표시등 깜빡임
     c.fillStyle = Math.floor(now / 600) % 2 ? "#f8e070" : "#806830"; c.fillRect(6 * T + 9, 17 * T + 5, 3, 2);
   } else if (scene === "ground") {
@@ -1203,7 +1266,8 @@ function upToLobby() { say(["엘리베이터를 타고 5층으로 올라가자!"
   })); }
 function leaveBuilding() { say(["1층으로 내려가자."], () => goScene("ground", 7, 4, "down")); }
 const SPOTS = {
-  photo: ["포토부스다! 사진을 찍어 인증하면 오박사 부스 스탬프 1개!"],
+  photo: ["포토부스다! 공대몬 카드 사진을 찍어 보자!"],
+  photozone: ["포토존이다! 머리띠·모자를 쓰고 사진을 찍어 보자.", "사진을 찍어 인증하면 오박사 부스 스탬프 1개!"],
   ball: ["몬스터볼 던지기다! 과녁에 넣으면 오박사 부스 스탬프 1개!"],
   toilet: ["화장실이다. 부스를 돌기 전에 들러 두자."],
   trash: ["분리수거함이다. 쓰레기는 여기에 버리자!"],
@@ -1314,6 +1378,7 @@ function interact() {
   else if (grid[ny] && grid[ny][nx] === "s") openPoster();
   else if (grid[ny] && grid[ny][nx] === "k") openBooth(LOBBY_BOOTH(nx));
   else if (grid[ny] && grid[ny][nx] === "P") openSpot("photo");
+  else if (grid[ny] && grid[ny][nx] === "Q") openSpot("photozone");
   else if (grid[ny] && grid[ny][nx] === "B") openSpot("ball");
   else if (grid[ny] && grid[ny][nx] === "m") openSpot("toilet");
   else if (grid[ny] && grid[ny][nx] === "z") openSpot("trash");
